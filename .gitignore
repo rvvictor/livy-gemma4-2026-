@@ -1,0 +1,33 @@
+# Secretos — la API key de Gemma nunca entra al repo
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Base de datos local
+*.db
+*.sqlite
+*.sqlite3
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+*.local
+
+# Editores y SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+nul
+
+# Artefactos de trabajo
+*.log
+audio_pruebas/
