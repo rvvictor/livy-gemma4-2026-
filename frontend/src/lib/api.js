@@ -1,0 +1,70 @@
+// Cliente HTTP de Livy. En desarrollo apunta al backend local; en Vercel se
+// configura VITE_API_URL con la URL pública del servicio de Render.
+const BASE = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
+
+async function pedir(ruta, opciones = {}) {
+  const respuesta = await fetch(`${BASE}${ruta}`, {
+    headers: opciones.body instanceof FormData ? {} : { "Content-Type": "application/json" },
+    ...opciones,
+  });
+
+  if (!respuesta.ok) {
+    let detalle = `Error ${respuesta.status}`;
+    try {
+      const cuerpo = await respuesta.json();
+      detalle = cuerpo.detail || detalle;
+    } catch {
+      // El backend no devolvió JSON; nos quedamos con el código.
+    }
+    throw new Error(detalle);
+  }
+
+  return respuesta.json();
+}
+
+export const api = {
+  salud: () => pedir("/health"),
+
+  materias: () => pedir("/api/materias"),
+  materia: (id) => pedir(`/api/materias/${id}`),
+
+  bitacora: (materiaId) => pedir(`/api/materias/${materiaId}/bitacora`),
+  recomendaciones: (materiaId) => pedir(`/api/materias/${materiaId}/recomendaciones`),
+
+  analizarTemario: (materiaId, archivo) => {
+    const datos = new FormData();
+    datos.append("archivo", archivo);
+    return pedir(`/api/materias/${materiaId}/temario/analizar`, { method: "POST", body: datos });
+  },
+  guardarTemario: (materiaId, temas) =>
+    pedir(`/api/materias/${materiaId}/temario`, {
+      method: "PUT",
+      body: JSON.stringify({ temas }),
+    }),
+
+  iniciarSesion: (grupoId) => pedir(`/api/grupos/${grupoId}/sesiones/iniciar`, { method: "POST" }),
+  enviarFragmento: (sesionId, texto) =>
+    pedir(`/api/sesiones/${sesionId}/transcripcion`, {
+      method: "POST",
+      body: JSON.stringify({ texto }),
+    }),
+  cerrarSesion: (sesionId, duracionMin) =>
+    pedir(`/api/sesiones/${sesionId}/cerrar`, {
+      method: "POST",
+      body: JSON.stringify({ duracion_min: duracionMin }),
+    }),
+  sesiones: (grupoId) => pedir(`/api/grupos/${grupoId}/sesiones`),
+
+  clases: (grupoId) => pedir(`/api/grupos/${grupoId}/clases`),
+  historialChat: (grupoId) => pedir(`/api/grupos/${grupoId}/chat`),
+  preguntar: (grupoId, pregunta) =>
+    pedir(`/api/grupos/${grupoId}/chat`, {
+      method: "POST",
+      body: JSON.stringify({ pregunta }),
+    }),
+  guia: (grupoId, enfoque) =>
+    pedir(`/api/grupos/${grupoId}/guia`, {
+      method: "POST",
+      body: JSON.stringify({ enfoque }),
+    }),
+};

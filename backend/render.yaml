@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: livy-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false          # se captura a mano en el panel de Render
+      - key: GEMMA_MODELO
+        value: gemma-4-31b-it
+      - key: LIVY_LIMITE_RPM
+        value: "13"
+      - key: CORS_ORIGENES
+        value: "*"
+      - key: PYTHON_VERSION
+        value: "3.12.7"
