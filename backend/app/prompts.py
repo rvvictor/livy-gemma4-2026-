@@ -61,6 +61,38 @@ Criterios:
 - Si un título viene en mayúsculas o abreviado, normalízalo a capitalización normal."""
 
 
+def leer_horario(profesor: str, texto_fuente: str | None) -> str:
+    """Extrae el horario semanal completo del profesor de una foto o un PDF."""
+    origen = (
+        f"El documento viene como texto extraído de un PDF:\n---\n{texto_fuente}\n---"
+        if texto_fuente
+        else "El documento viene como imagen adjunta. Suele ser una tabla con los días de la "
+        "semana en las columnas y las horas en las filas, a veces fotografiada en ángulo o "
+        "con anotaciones a mano."
+    )
+    return f"""Extrae el horario semanal de clases del profesor {profesor} a partir del documento.
+
+{origen}
+
+Devuelve JSON con esta forma exacta:
+{{
+  "clases": [
+    {{"materia": "Cálculo Diferencial", "clave": "MAT-1201", "grupo": "1CV1",
+      "dias": [1, 3], "hora_inicio": "07:00", "hora_fin": "08:30"}}
+  ]
+}}
+
+Criterios:
+- Los días van en número ISO: 1 lunes, 2 martes, 3 miércoles, 4 jueves, 5 viernes, 6 sábado, 7 domingo.
+- **Agrupa**: si la misma materia con el mismo grupo aparece en varios días a la misma hora,
+  devuelve UN SOLO elemento con todos los días juntos en la lista, no uno por día.
+- Si la misma materia y grupo aparecen en días con horarios distintos, sí van separados.
+- Las horas en formato de 24 horas, con dos dígitos y dos puntos: "07:00", "18:30".
+- El nombre del grupo es el identificador de la sección, como 1CV1, 3CM2 o "Grupo B".
+- Si no aparece una clave de materia, deja "clave" como cadena vacía. No la inventes.
+- No incluyas horas libres, comidas ni actividades que no sean clases."""
+
+
 def resumir_sesion(
     materia: str,
     grupo: str,
@@ -241,6 +273,12 @@ def simulacion(clave: str) -> Any:
         "temario": {
             "temas": [
                 {"orden": 1, "unidad": "Unidad 1", "titulo": "Tema de ejemplo", "subtemas": []}
+            ]
+        },
+        "horario": {
+            "clases": [
+                {"materia": "Materia de ejemplo", "clave": "", "grupo": "1CV1",
+                 "dias": [1, 3], "hora_inicio": "07:00", "hora_fin": "08:30"}
             ]
         },
         "resumen": {

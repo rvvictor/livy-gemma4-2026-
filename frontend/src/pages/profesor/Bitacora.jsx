@@ -1,8 +1,9 @@
 // La pantalla con la que el profesor abre el día: qué clases tiene esta semana,
 // qué tema toca en cada una y qué sigue para cada sección.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
+import RevisionHorario from "../../components/RevisionHorario.jsx";
 import { Aparece, Aviso, ChipRiesgo, Encabezado, Esqueleto } from "../../components/ui.jsx";
 import { useCiclo } from "../../estado.jsx";
 import { api } from "../../lib/api.js";
@@ -33,15 +34,23 @@ function formatoCorto(iso) {
 }
 
 export default function Bitacora() {
-  const { ciclo } = useCiclo();
+  const { ciclo, recargar } = useCiclo();
   const [referencia, setReferencia] = useState(null);
   const [agenda, setAgenda] = useState(null);
   const [error, setError] = useState(null);
+  const [aviso, setAviso] = useState(null);
 
   const [materiaMapa, setMateriaMapa] = useState(null);
   const [mapa, setMapa] = useState(null);
   const [recomendaciones, setRecomendaciones] = useState({});
   const [pensando, setPensando] = useState(null);
+
+  // Carga del horario por visión
+  const [propuesta, setPropuesta] = useState(null);
+  const [fuente, setFuente] = useState("");
+  const [analizando, setAnalizando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const archivoRef = useRef(null);
 
   useEffect(() => {
     let vigente = true;
@@ -90,6 +99,74 @@ export default function Bitacora() {
     }
   }
 
+  async function analizarHorario(evento) {
+    const archivo = evento.target.files?.[0];
+    if (!archivo) return;
+    setAnalizando(true);
+    setError(null);
+    setAviso(null);
+    try {
+      const respuesta = await api.analizarHorario(archivo);
+      setPropuesta(respuesta.clases);
+      setFuente(respuesta.fuente);
+    } catch (fallo) {
+      setError(fallo.message);
+    } finally {
+      setAnalizando(false);
+      if (archivoRef.current) archivoRef.current.value = "";
+    }
+  }
+
+  function editarClase(indice, campo, valor) {
+    setPropuesta((clases) =>
+      clases.map((clase, i) => (i === indice ? { ...clase, [campo]: valor } : clase)),
+    );
+  }
+
+  function alternarDia(indice, dia) {
+    setPropuesta((clases) =>
+      clases.map((clase, i) => {
+        if (i !== indice) return clase;
+        const dias = clase.dias.includes(dia)
+          ? clase.dias.filter((d) => d !== dia)
+          : [...clase.dias, dia].sort();
+        return { ...clase, dias };
+      }),
+    );
+  }
+
+  function eliminarClase(indice) {
+    setPropuesta((clases) => clases.filter((_, i) => i !== indice));
+  }
+
+  async function guardarHorario() {
+    setGuardando(true);
+    setError(null);
+    try {
+      const resultado = await api.guardarHorario(
+        propuesta.map((clase) => ({
+          materia: clase.materia,
+          clave: clase.clave,
+          grupo: clase.grupo,
+          dias: clase.dias,
+          hora_inicio: clase.hora_inicio,
+          hora_fin: clase.hora_fin,
+        })),
+      );
+      setPropuesta(null);
+      setAviso(
+        `Horario aplicado: ${resultado.materias_creadas} materias nuevas, ` +
+          `${resultado.grupos_creados} grupos nuevos, ${resultado.grupos_actualizados} actualizados.`,
+      );
+      await recargar();
+      setAgenda(await api.agenda(referencia)); // releer con los grupos recién creados
+    } catch (fallo) {
+      setError(fallo.message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
   const porDia = useMemo(() => {
     if (!agenda) return [];
     const mapaDias = new Map();
@@ -110,29 +187,56 @@ export default function Bitacora() {
             : "Cargando tu ciclo…"
         }
         acciones={
-          <div className="flex items-center gap-1">
-            <button
-              className="boton-fantasma"
-              onClick={() => setReferencia(desplazar(agenda?.inicio ?? new Date().toISOString().slice(0, 10), -7))}
-              disabled={!agenda}
-            >
-              ← Anterior
-            </button>
-            <button className="boton-secundario" onClick={() => setReferencia(null)}>
-              Esta semana
-            </button>
-            <button
-              className="boton-fantasma"
-              onClick={() => setReferencia(desplazar(agenda?.inicio ?? new Date().toISOString().slice(0, 10), 7))}
-              disabled={!agenda}
-            >
-              Siguiente →
-            </button>
-          </div>
+          <>
+            <div className="flex items-center gap-1">
+              <button
+                className="boton-fantasma"
+                onClick={() => setReferencia(desplazar(agenda?.inicio ?? new Date().toISOString().slice(0, 10), -7))}
+                disabled={!agenda}
+              >
+                ← Anterior
+              </button>
+              <button className="boton-secundario" onClick={() => setReferencia(null)}>
+                Esta semana
+              </button>
+              <button
+                className="boton-fantasma"
+                onClick={() => setReferencia(desplazar(agenda?.inicio ?? new Date().toISOString().slice(0, 10), 7))}
+                disabled={!agenda}
+              >
+                Siguiente →
+              </button>
+            </div>
+            <input
+              ref={archivoRef}
+              id="archivo-horario"
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={analizarHorario}
+            />
+            <label htmlFor="archivo-horario" className="boton-primario cursor-pointer">
+              {analizando ? "Gemma está leyendo…" : "Cargar horario con foto o PDF"}
+            </label>
+          </>
         }
       />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
+      {aviso && <Aviso tipo="alerta">{aviso}</Aviso>}
+
+      {propuesta && (
+        <RevisionHorario
+          clases={propuesta}
+          editar={editarClase}
+          alternarDia={alternarDia}
+          eliminar={eliminarClase}
+          guardar={guardarHorario}
+          cancelar={() => setPropuesta(null)}
+          guardando={guardando}
+          fuente={fuente}
+        />
+      )}
 
       {/* ── Agenda semanal ── */}
       <section>

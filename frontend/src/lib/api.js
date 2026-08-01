@@ -30,6 +30,14 @@ export const api = {
   agenda: (referencia) =>
     pedir(`/api/profesor/agenda${referencia ? `?referencia=${referencia}` : ""}`),
 
+  analizarHorario: (archivo) => {
+    const datos = new FormData();
+    datos.append("archivo", archivo);
+    return pedir("/api/profesor/horario/analizar", { method: "POST", body: datos });
+  },
+  guardarHorario: (clases) =>
+    pedir("/api/profesor/horario", { method: "PUT", body: JSON.stringify({ clases }) }),
+
   materias: () => pedir("/api/materias"),
   materia: (id) => pedir(`/api/materias/${id}`),
   bitacora: (materiaId) => pedir(`/api/materias/${materiaId}/bitacora`),

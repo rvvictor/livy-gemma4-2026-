@@ -7,7 +7,6 @@ que lo revise y lo corrija. Él es el autor del plan, el modelo solo transcribe.
 
 from __future__ import annotations
 
-import io
 import json
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -15,13 +14,12 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from .. import gemma, prompts
+from ..archivos import leer_documento
 from ..avance import temas_de_materia
 from ..db import obtener_sesion
 from ..models import Grupo, Materia, Tema
 
 router = APIRouter(prefix="/api", tags=["temario"])
-
-TIPOS_IMAGEN = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/heic"}
 
 
 class TemaEntrada(BaseModel):
@@ -101,35 +99,7 @@ async def analizar_temario(
     if not materia:
         raise HTTPException(404, "Materia no encontrada")
 
-    contenido = await archivo.read()
-    if not contenido:
-        raise HTTPException(400, "El archivo llegó vacío")
-
-    tipo = (archivo.content_type or "").lower()
-    imagenes: list[tuple[str, bytes]] | None = None
-    texto_fuente: str | None = None
-
-    if tipo == "application/pdf" or archivo.filename.lower().endswith(".pdf"):
-        try:
-            from pypdf import PdfReader
-
-            lector = PdfReader(io.BytesIO(contenido))
-            texto_fuente = "\n".join((pagina.extract_text() or "") for pagina in lector.pages)
-        except Exception as error:  # noqa: BLE001 - queremos el mensaje al usuario
-            raise HTTPException(400, f"No se pudo leer el PDF: {error}") from error
-
-        if not texto_fuente.strip():
-            raise HTTPException(
-                400,
-                "El PDF no tiene texto extraíble (parece un escaneo). "
-                "Sube una foto del temario y Gemma lo lee con visión.",
-            )
-    elif tipo in TIPOS_IMAGEN or archivo.filename.lower().endswith(
-        (".png", ".jpg", ".jpeg", ".webp")
-    ):
-        imagenes = [(tipo or "image/jpeg", contenido)]
-    else:
-        raise HTTPException(400, f"Formato no soportado: {tipo or archivo.filename}")
+    imagenes, texto_fuente = await leer_documento(archivo)
 
     try:
         resultado = await gemma.generar(
