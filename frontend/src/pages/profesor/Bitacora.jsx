@@ -153,64 +153,69 @@ export default function Bitacora() {
         ) : porDia.length === 0 ? (
           <Aviso>No hay clases programadas en esta semana.</Aviso>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {porDia.map(([fecha, clases], indiceDia) => {
-              const esHoy = fecha === agenda.hoy;
-              return (
-                <Aparece key={fecha} retraso={indiceDia * 70}>
-                  <div
-                    className={`h-full rounded-2xl border bg-blanco p-4 transition-colors ${
-                      esHoy ? "border-guinda ring-4 ring-nieve" : "border-borde"
-                    }`}
-                  >
-                    <header className="mb-3 flex items-baseline justify-between border-b border-borde pb-2.5">
-                      <span
-                        className={`text-sm font-semibold ${esHoy ? "text-guinda" : "text-tinta"}`}
-                      >
-                        {clases[0].dia}
-                      </span>
-                      <span className="text-xs text-gris">
-                        {esHoy ? "Hoy" : formatoCorto(fecha)}
-                      </span>
-                    </header>
+          // Los días de la semana van siempre en una sola fila. En pantallas
+          // angostas la fila se desplaza en horizontal en lugar de romperse,
+          // para que la semana se lea como una semana y no como una lista.
+          <div className="-mx-6 overflow-x-auto px-6 pb-2">
+            <div className="grid min-w-full auto-cols-[minmax(215px,1fr)] grid-flow-col gap-4">
+              {porDia.map(([fecha, clases], indiceDia) => {
+                const esHoy = fecha === agenda.hoy;
+                return (
+                  <Aparece key={fecha} retraso={indiceDia * 70}>
+                    <div
+                      className={`h-full rounded-2xl border bg-blanco p-4 transition-colors ${
+                        esHoy ? "border-guinda ring-4 ring-nieve" : "border-borde"
+                      }`}
+                    >
+                      <header className="mb-3 flex items-baseline justify-between border-b border-borde pb-2.5">
+                        <span
+                          className={`text-sm font-semibold ${esHoy ? "text-guinda" : "text-tinta"}`}
+                        >
+                          {clases[0].dia}
+                        </span>
+                        <span className="text-xs text-gris">
+                          {esHoy ? "Hoy" : formatoCorto(fecha)}
+                        </span>
+                      </header>
 
-                    <div className="space-y-3">
-                      {clases.map((clase) => (
-                        <div key={`${clase.grupo_id}-${clase.fecha}`} className="group">
-                          <div className="flex items-baseline justify-between gap-2">
-                            <span className="font-mono text-xs text-gris">
-                              {clase.hora_inicio}
-                            </span>
-                            <span className={`chip ${ESTADO_CLASE[clase.estado].chip}`}>
-                              {ESTADO_CLASE[clase.estado].texto}
-                            </span>
+                      <div className="space-y-4">
+                        {clases.map((clase) => (
+                          <div key={`${clase.grupo_id}-${clase.fecha}`} className="group">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="font-mono text-xs text-gris">
+                                {clase.hora_inicio}
+                              </span>
+                              <span className={`chip ${ESTADO_CLASE[clase.estado].chip}`}>
+                                {ESTADO_CLASE[clase.estado].texto}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-sm font-medium text-tinta">{clase.grupo}</p>
+                            <p className="text-xs text-gris">{clase.materia}</p>
+                            <p className="mt-1 text-sm leading-snug text-guinda-900">
+                              {clase.tema.titulo}
+                            </p>
+                            {clase.tema.nota && (
+                              <p className="mt-0.5 text-xs text-gris">{clase.tema.nota}</p>
+                            )}
+                            {clase.estado === "planeada" && (
+                              <Link
+                                to="/profesor/clase"
+                                state={{ grupoId: clase.grupo_id }}
+                                className="mt-1.5 inline-block text-xs font-medium text-rojo
+                                           opacity-0 transition-opacity duration-200
+                                           group-hover:opacity-100 focus:opacity-100"
+                              >
+                                Dar esta clase →
+                              </Link>
+                            )}
                           </div>
-                          <p className="mt-1 text-sm font-medium text-tinta">
-                            {clase.grupo}
-                            <span className="ml-2 font-normal text-gris">{clase.materia}</span>
-                          </p>
-                          <p className="mt-0.5 text-sm text-guinda-900">{clase.tema.titulo}</p>
-                          {clase.tema.nota && (
-                            <p className="mt-0.5 text-xs text-gris">{clase.tema.nota}</p>
-                          )}
-                          {clase.estado === "planeada" && (
-                            <Link
-                              to="/profesor/clase"
-                              state={{ grupoId: clase.grupo_id }}
-                              className="mt-1.5 inline-block text-xs font-medium text-rojo opacity-0
-                                         transition-opacity duration-200 group-hover:opacity-100
-                                         focus:opacity-100"
-                            >
-                              Dar esta clase →
-                            </Link>
-                          )}
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </Aparece>
-              );
-            })}
+                  </Aparece>
+                );
+              })}
+            </div>
           </div>
         )}
       </section>

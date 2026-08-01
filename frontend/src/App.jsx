@@ -1,19 +1,19 @@
 import { Link, NavLink, Navigate, Outlet, Route, Routes } from "react-router-dom";
 
+import ClasesDeGrupo from "./components/portal/ClasesDeGrupo.jsx";
+import DetalleDeClase from "./components/portal/DetalleDeClase.jsx";
+import IndiceGrupos from "./components/portal/IndiceGrupos.jsx";
 import { ProveedorCiclo } from "./estado.jsx";
 import Landing from "./pages/Landing.jsx";
 import Bitacora from "./pages/profesor/Bitacora.jsx";
 import ClaseEnVivo from "./pages/profesor/ClaseEnVivo.jsx";
 import PlanDeEstudios from "./pages/profesor/PlanDeEstudios.jsx";
-import ClaseAlumno from "./pages/alumno/Clase.jsx";
-import ChatGeneral from "./pages/alumno/ChatGeneral.jsx";
-import GrupoAlumno from "./pages/alumno/Grupo.jsx";
-import IndiceAlumno from "./pages/alumno/Indice.jsx";
 
 const SECCIONES_PROFESOR = [
   { ruta: "/profesor/bitacora", nombre: "Bitácora" },
   { ruta: "/profesor/clase", nombre: "Clase en vivo" },
   { ruta: "/profesor/plan", nombre: "Plan de estudios" },
+  { ruta: "/profesor/alumnos", nombre: "Portal de alumnos" },
 ];
 
 function Marca({ sufijo }) {
@@ -31,13 +31,11 @@ function MarcoProfesor() {
   return (
     <ProveedorCiclo>
       <div className="flex min-h-full flex-col">
-        <header className="sticky top-0 z-30 border-b border-borde bg-blanco/85 backdrop-blur-md">
+        <header className="no-imprimir sticky top-0 z-30 border-b border-borde bg-blanco/85 backdrop-blur-md">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 pt-4">
             <Marca sufijo="Continuidad docente, grupo por grupo" />
             <div className="flex items-center gap-2">
-              <Link to="/alumno" className="boton-fantasma">
-                Ver portal del alumno
-              </Link>
+              <span className="chip bg-hueso text-gris">Vista del profesor</span>
               <span className="chip bg-nieve text-guinda-900">Gemma 4</span>
             </div>
           </div>
@@ -65,7 +63,7 @@ function MarcoProfesor() {
           <Outlet />
         </main>
 
-        <footer className="border-t border-borde bg-blanco">
+        <footer className="no-imprimir border-t border-borde bg-blanco">
           <div className="mx-auto max-w-6xl px-6 py-5 text-xs text-gris">
             El profesor es el autor. Livy solo propone: cada resumen y cada plan queda sujeto
             a su revisión.
@@ -79,7 +77,7 @@ function MarcoProfesor() {
 function MarcoAlumno() {
   return (
     <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-30 border-b border-borde bg-blanco/85 backdrop-blur-md">
+      <header className="no-imprimir sticky top-0 z-30 border-b border-borde bg-blanco/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-4">
           <div className="flex items-baseline gap-2.5">
             <Marca />
@@ -95,7 +93,7 @@ function MarcoAlumno() {
         <Outlet />
       </main>
 
-      <footer className="border-t border-borde bg-blanco">
+      <footer className="no-imprimir border-t border-borde bg-blanco">
         <div className="mx-auto max-w-5xl px-6 py-5 text-xs text-gris">
           Las respuestas se basan en las clases que tu profesor impartió a tu grupo. Si algo no
           se vio en clase, Livy te lo dice en vez de inventarlo.
@@ -110,18 +108,35 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
 
+      {/* Vista del profesor */}
       <Route path="/profesor" element={<MarcoProfesor />}>
         <Route index element={<Navigate to="/profesor/bitacora" replace />} />
         <Route path="bitacora" element={<Bitacora />} />
         <Route path="clase" element={<ClaseEnVivo />} />
         <Route path="plan" element={<PlanDeEstudios />} />
+        {/* El portal de alumnos, visto desde la administración */}
+        <Route
+          path="alumnos"
+          element={<IndiceGrupos modo="profesor" base="/profesor/alumnos" />}
+        />
+        <Route
+          path="alumnos/clase/:sesionId"
+          element={<DetalleDeClase modo="profesor" base="/profesor/alumnos" />}
+        />
+        <Route
+          path="alumnos/:grupoId"
+          element={<ClasesDeGrupo modo="profesor" base="/profesor/alumnos" />}
+        />
       </Route>
 
+      {/* Vista del alumno */}
       <Route path="/alumno" element={<MarcoAlumno />}>
-        <Route index element={<IndiceAlumno />} />
-        <Route path="clase/:sesionId" element={<ClaseAlumno />} />
-        <Route path=":grupoId" element={<GrupoAlumno />} />
-        <Route path=":grupoId/chat" element={<ChatGeneral />} />
+        <Route index element={<IndiceGrupos modo="alumno" base="/alumno" />} />
+        <Route
+          path="clase/:sesionId"
+          element={<DetalleDeClase modo="alumno" base="/alumno" />}
+        />
+        <Route path=":grupoId" element={<ClasesDeGrupo modo="alumno" base="/alumno" />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

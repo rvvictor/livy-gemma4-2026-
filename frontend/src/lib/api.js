@@ -69,7 +69,9 @@ export const api = {
   gruposAlumno: () => pedir("/api/alumno/grupos"),
   clases: (grupoId) => pedir(`/api/grupos/${grupoId}/clases`),
   clase: (sesionId) => pedir(`/api/sesiones/${sesionId}/publica`),
-  dudas: (grupoId) => pedir(`/api/grupos/${grupoId}/dudas`),
+  dudas: (grupoId, alcance = "general") =>
+    pedir(`/api/grupos/${grupoId}/dudas?alcance=${alcance}`),
+  dudasDeClase: (sesionId) => pedir(`/api/sesiones/${sesionId}/dudas`),
 
   historialChat: (grupoId) => pedir(`/api/grupos/${grupoId}/chat`),
   preguntar: (grupoId, pregunta) =>

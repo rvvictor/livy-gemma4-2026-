@@ -39,18 +39,36 @@ La aplicación tiene dos caras con rutas separadas: `/profesor` y `/alumno`.
 
 | Pantalla | Ruta | Qué resuelve |
 | :--- | :--- | :--- |
-| **Bitácora** | `/profesor/bitacora` | Agenda de la semana con el tema que toca en cada clase, el siguiente paso sugerido por sección, y el mapa comparativo del plan |
+| **Bitácora** | `/profesor/bitacora` | Agenda de la semana en una sola fila con el tema que toca en cada clase, el siguiente paso sugerido por sección, y el mapa comparativo del plan |
 | **Clase en vivo** | `/profesor/clase` | Hilo de conversación: transcribe la sesión, permite preguntarle a Livy en medio de la clase y al cerrar genera la memoria estructurada |
 | **Plan de estudios** | `/profesor/plan` | El ciclo completo —todas las materias, sus secciones y su avance— y la carga del temario por visión |
+| **Portal de alumnos** | `/profesor/alumnos` | Vista de administrador de lo que reciben sus grupos, con el registro de lo que preguntaron |
 
 ### Lado del alumno
 
 | Pantalla | Ruta | Qué resuelve |
 | :--- | :--- | :--- |
 | **Mis materias** | `/alumno` | Todas las secciones a las que pertenece |
-| **Clases del grupo** | `/alumno/:grupoId` | Listado de sesiones y panel con las dudas que ya preguntaron sus compañeros |
+| **Clases del grupo** | `/alumno/:grupoId` | Listado de sesiones y chat de dudas sobre todo el curso |
 | **Una clase** | `/alumno/clase/:sesionId` | Liga propia por sesión: resumen extenso, transcripción completa y chat acotado a esa clase |
-| **Chat del curso** | `/alumno/:grupoId/chat` | Preguntas sobre todo lo visto en el semestre |
+
+### La misma página, dos lecturas
+
+Las tres vistas del portal son **el mismo componente** con un parámetro de modo.
+Lo único que cambia es el panel lateral, y ese detalle es lo que le da su valor a
+cada rol:
+
+- El **alumno** tiene un chat. En el listado del grupo pregunta sobre todo el
+  curso; dentro de una clase, sobre esa sesión únicamente.
+- El **profesor** ve el reverso: en el listado, las dudas generales de su grupo;
+  dentro de una clase, lo que se preguntó de esa sesión. Es un diagnóstico de
+  dónde falló la explicación, sin tener que encuestar a nadie.
+
+Las **guías de estudio** las genera cualquiera de los dos roles con el mismo
+endpoint. Se abren como un cambio de vista dentro de la misma página y se
+descargan en PDF a través del diálogo de impresión, contra una hoja de estilos
+dedicada: el archivo conserva texto seleccionable y se pagina solo, sin arrastrar
+una librería de generación de PDF al paquete.
 
 ---
 

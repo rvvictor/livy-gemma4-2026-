@@ -200,6 +200,57 @@ body {
   background-size: 100% 1.5px;
 }
 
+/* ───────────────────────── Impresión ─────────────────────────
+   Las guías de estudio se descargan como PDF a través del diálogo de impresión
+   del navegador. Al imprimir se oculta toda la aplicación menos el contenido
+   marcado como imprimible, de modo que el PDF sale limpio y con texto
+   seleccionable —no una captura de pantalla. */
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .imprimible,
+  .imprimible * {
+    visibility: visible;
+  }
+
+  .imprimible {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: #ffffff;
+    font-size: 11.5pt;
+    line-height: 1.6;
+  }
+
+  .no-imprimir {
+    display: none !important;
+  }
+
+  .imprimible h1,
+  .imprimible h2,
+  .imprimible h3 {
+    break-after: avoid;
+  }
+
+  .imprimible p,
+  .imprimible li {
+    break-inside: avoid;
+  }
+
+  @page {
+    margin: 18mm 16mm;
+  }
+}
+
 /* Quien pidió menos movimiento, recibe menos movimiento. */
 @media (prefers-reduced-motion: reduce) {
   *,

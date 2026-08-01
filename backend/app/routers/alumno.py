@@ -161,33 +161,87 @@ def clase_para_alumno(sesion_id: int, db: Session = Depends(obtener_sesion)) -> 
     }
 
 
-@router.get("/grupos/{grupo_id}/dudas")
-def dudas_del_grupo(grupo_id: int, db: Session = Depends(obtener_sesion)) -> list[dict]:
-    """Lo que están preguntando los compañeros de este grupo.
+def _serializar_duda(pregunta: MensajeChat, respuesta: str, titulo: str) -> dict:
+    return {
+        "id": pregunta.id,
+        "contenido": pregunta.contenido,
+        "respuesta": respuesta,
+        "sesion_id": pregunta.sesion_id,
+        "clase": titulo,
+    }
 
-    Sirve doble: al alumno le muestra que no es el único atorado, y al profesor le
-    revela dónde falló la explicación sin tener que preguntarle a nadie.
+
+def _respuestas_por_pregunta(db: Session, preguntas: list[MensajeChat]) -> dict[int, str]:
+    """Empareja cada pregunta con la respuesta que Livy dio justo después."""
+    if not preguntas:
+        return {}
+    posteriores = db.exec(
+        select(MensajeChat)
+        .where(MensajeChat.rol == "asistente", MensajeChat.id > min(p.id for p in preguntas))
+        .order_by(MensajeChat.id)
+    ).all()
+    emparejadas: dict[int, str] = {}
+    for pregunta in preguntas:
+        siguiente = next((m for m in posteriores if m.id > pregunta.id), None)
+        if siguiente:
+            emparejadas[pregunta.id] = siguiente.contenido
+    return emparejadas
+
+
+@router.get("/grupos/{grupo_id}/dudas")
+def dudas_del_grupo(
+    grupo_id: int,
+    alcance: str = "general",
+    db: Session = Depends(obtener_sesion),
+) -> list[dict]:
+    """Lo que están preguntando los alumnos de este grupo sobre el curso completo.
+
+    Es la vista que le revela al profesor dónde falló la explicación sin tener que
+    preguntarle a nadie. Con `alcance=general` (por defecto) solo trae las dudas
+    que no están atadas a una clase concreta; las de cada sesión viven en el
+    endpoint de esa sesión.
     """
     _materia_y_grupo(db, grupo_id)
-    preguntas = db.exec(
-        select(MensajeChat)
-        .where(MensajeChat.grupo_id == grupo_id, MensajeChat.rol == "alumno")
-        .order_by(MensajeChat.id.desc())
-        .limit(40)
-    ).all()
 
+    consulta = select(MensajeChat).where(
+        MensajeChat.grupo_id == grupo_id, MensajeChat.rol == "alumno"
+    )
+    if alcance == "general":
+        consulta = consulta.where(MensajeChat.sesion_id.is_(None))
+
+    preguntas = db.exec(consulta.order_by(MensajeChat.id.desc()).limit(40)).all()
+    respuestas = _respuestas_por_pregunta(db, preguntas)
     titulos = {
-        s.id: s.titulo
-        for s in db.exec(select(Sesion).where(Sesion.grupo_id == grupo_id)).all()
+        s.id: s.titulo for s in db.exec(select(Sesion).where(Sesion.grupo_id == grupo_id)).all()
     }
 
     return [
-        {
-            "id": pregunta.id,
-            "contenido": pregunta.contenido,
-            "sesion_id": pregunta.sesion_id,
-            "clase": titulos.get(pregunta.sesion_id, "") if pregunta.sesion_id else "",
-        }
+        _serializar_duda(
+            pregunta,
+            respuestas.get(pregunta.id, ""),
+            titulos.get(pregunta.sesion_id, "") if pregunta.sesion_id else "",
+        )
+        for pregunta in preguntas
+    ]
+
+
+@router.get("/sesiones/{sesion_id}/dudas")
+def dudas_de_la_clase(sesion_id: int, db: Session = Depends(obtener_sesion)) -> list[dict]:
+    """Lo que se preguntó sobre esta clase en particular."""
+    sesion = db.get(Sesion, sesion_id)
+    if not sesion:
+        raise HTTPException(404, "Clase no encontrada")
+
+    preguntas = db.exec(
+        select(MensajeChat)
+        .where(MensajeChat.sesion_id == sesion_id, MensajeChat.rol == "alumno")
+        .order_by(MensajeChat.id.desc())
+        .limit(40)
+    ).all()
+    respuestas = _respuestas_por_pregunta(db, preguntas)
+
+    return [
+        _serializar_duda(pregunta, respuestas.get(pregunta.id, ""), sesion.titulo)
         for pregunta in preguntas
     ]
 

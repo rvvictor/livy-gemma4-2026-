@@ -1,21 +1,23 @@
 // Una clase, con su propia dirección.
 //
-// Cada sesión tiene liga propia (/alumno/clase/:id) para que se pueda compartir
-// entre compañeros: "lo que faltaste es esto". Trae el resumen extenso, el botón
-// de transcripción en el encabezado —lo que se dijo, tal cual— y un chat acotado
-// a esta sesión, que no se mezcla con el resto del semestre.
-import { useEffect, useRef, useState } from "react";
+// Cada sesión tiene liga propia para que se pueda compartir entre compañeros:
+// "lo que faltaste es esto". El encabezado alterna entre el resumen extenso y la
+// transcripción literal de lo que se dijo.
+//
+// El costado cambia según quién mira: el alumno tiene un chat acotado a esta
+// sesión —no se mezcla con el resto del semestre— y el profesor ve lo que se
+// preguntó sobre esta clase en particular.
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import {
-  Aparece,
-  Aviso,
-  Burbuja,
-  Escribiendo,
-  Esqueleto,
-  TextoRico,
-} from "../../components/ui.jsx";
+import { Aparece, Aviso, Esqueleto, TextoRico } from "../ui.jsx";
+import { PanelChat, PanelDudas, Regresar } from "./piezas.jsx";
 import { api } from "../../lib/api.js";
+
+const SUGERENCIAS = [
+  "No entendí la parte del final",
+  "Dame otro ejemplo de lo que explicó",
+];
 
 function fechaLarga(iso) {
   return new Date(`${iso}T12:00:00`).toLocaleDateString("es-MX", {
@@ -26,38 +28,37 @@ function fechaLarga(iso) {
   });
 }
 
-export default function ClaseAlumno() {
+export default function DetalleDeClase({ modo, base }) {
   const { sesionId } = useParams();
+  const esProfesor = modo === "profesor";
+
   const [clase, setClase] = useState(null);
   const [vista, setVista] = useState("resumen"); // resumen | transcripcion
+  const [dudas, setDudas] = useState([]);
   const [mensajes, setMensajes] = useState([]);
-  const [pregunta, setPregunta] = useState("");
   const [pensando, setPensando] = useState(false);
   const [error, setError] = useState(null);
-  const finChat = useRef(null);
 
   useEffect(() => {
     setClase(null);
     setVista("resumen");
-    Promise.all([api.clase(sesionId), api.historialChatClase(sesionId)])
-      .then(([detalle, historial]) => {
+    setError(null);
+
+    const lateral = esProfesor
+      ? api.dudasDeClase(sesionId)
+      : api.historialChatClase(sesionId);
+
+    Promise.all([api.clase(sesionId), lateral])
+      .then(([detalle, secundario]) => {
         setClase(detalle);
-        setMensajes(historial);
+        if (esProfesor) setDudas(secundario);
+        else setMensajes(secundario);
       })
       .catch((fallo) => setError(fallo.message));
-  }, [sesionId]);
+  }, [sesionId, esProfesor]);
 
-  useEffect(() => {
-    finChat.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [mensajes, pensando]);
-
-  async function preguntar(evento) {
-    evento.preventDefault();
-    const texto = pregunta.trim();
-    if (!texto || pensando) return;
-
+  async function preguntar(texto) {
     setMensajes((previos) => [...previos, { rol: "alumno", contenido: texto }]);
-    setPregunta("");
     setPensando(true);
     setError(null);
     try {
@@ -75,22 +76,18 @@ export default function ClaseAlumno() {
 
   return (
     <div>
-      {/* ── Encabezado de la clase ── */}
-      <Aparece className="mb-7 border-b border-borde pb-5">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-gris">
-          <Link
-            to={`/alumno/${clase.grupo_id}`}
-            className="subraya-hover hover:text-guinda"
-          >
-            {clase.materia} · {clase.grupo}
-          </Link>
-          <span>›</span>
-          <span>
-            Clase {clase.numero} de {clase.total}
-          </span>
-        </div>
+      <div className="mb-4">
+        <Regresar a={`${base}/${clase.grupo_id}`}>
+          {clase.materia} · {clase.grupo}
+        </Regresar>
+      </div>
 
-        <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
+      <Aparece className="mb-7 border-b border-borde pb-5">
+        <p className="text-xs text-gris">
+          Clase {clase.numero} de {clase.total}
+        </p>
+
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-guinda">
               {fechaLarga(clase.fecha)}
@@ -142,13 +139,8 @@ export default function ClaseAlumno() {
                   <p className="etiqueta mb-3">Lo que hay que llevarse</p>
                   <ul className="space-y-2 text-[15px] text-tinta">
                     {clase.puntos_clave.map((punto, indice) => (
-                      <Aparece
-                        key={indice}
-                        como="li"
-                        retraso={indice * 70}
-                        className="flex gap-2.5"
-                      >
-                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-guinda" />
+                      <Aparece key={indice} como="li" retraso={indice * 70} className="flex gap-2.5">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-guinda" />
                         {punto}
                       </Aparece>
                     ))}
@@ -179,9 +171,7 @@ export default function ClaseAlumno() {
             <Aparece className="tarjeta">
               <div className="mb-4 flex items-baseline justify-between border-b border-borde pb-3">
                 <p className="etiqueta">Lo que se dijo en clase</p>
-                <span className="text-xs text-gris">
-                  {clase.transcripcion.length} caracteres
-                </span>
+                <span className="text-xs text-gris">{clase.transcripcion.length} caracteres</span>
               </div>
               {clase.transcripcion ? (
                 <p className="whitespace-pre-line text-[15px] leading-[1.9] text-tinta">
@@ -193,17 +183,16 @@ export default function ClaseAlumno() {
             </Aparece>
           )}
 
-          {/* Navegación entre sesiones */}
           <div className="mt-8 flex items-center justify-between border-t border-borde pt-5">
             {clase.anterior ? (
-              <Link to={`/alumno/clase/${clase.anterior}`} className="boton-secundario">
+              <Link to={`${base}/clase/${clase.anterior}`} className="boton-secundario">
                 ← Clase anterior
               </Link>
             ) : (
               <span />
             )}
             {clase.siguiente ? (
-              <Link to={`/alumno/clase/${clase.siguiente}`} className="boton-secundario">
+              <Link to={`${base}/clase/${clase.siguiente}`} className="boton-secundario">
                 Clase siguiente →
               </Link>
             ) : (
@@ -212,60 +201,25 @@ export default function ClaseAlumno() {
           </div>
         </section>
 
-        {/* ── Chat acotado a esta clase ── */}
         <aside className="lg:sticky lg:top-24 lg:h-[calc(100vh-9rem)] lg:self-start">
-          <div className="tarjeta flex h-full flex-col">
-            <header className="border-b border-borde pb-3">
-              <h2 className="font-semibold text-tinta">Pregunta sobre esta clase</h2>
-              <p className="mt-1 text-xs leading-relaxed text-gris">
-                Responde solo con lo que se vio el {fechaLarga(clase.fecha).split(",")[0]}. Para
-                dudas de todo el curso,{" "}
-                <Link
-                  to={`/alumno/${clase.grupo_id}/chat`}
-                  className="text-guinda subraya-hover"
-                >
-                  usa el chat general
-                </Link>
-                .
-              </p>
-            </header>
-
-            <div className="flex-1 space-y-3 overflow-y-auto py-4">
-              {mensajes.length === 0 && (
-                <p className="text-sm leading-relaxed text-gris">
-                  Prueba con algo de esta sesión: «no entendí la parte del final» o «dame otro
-                  ejemplo de lo que explicó».
-                </p>
-              )}
-              {mensajes.map((mensaje, indice) => (
-                <Burbuja key={indice} rol={mensaje.rol}>
-                  {mensaje.rol === "alumno" ? (
-                    mensaje.contenido
-                  ) : (
-                    <TextoRico contenido={mensaje.contenido} />
-                  )}
-                </Burbuja>
-              ))}
-              {pensando && <Escribiendo texto="Buscando en esta clase" />}
-              <div ref={finChat} />
-            </div>
-
-            <form onSubmit={preguntar} className="flex items-end gap-2 border-t border-borde pt-3">
-              <input
-                className="campo rounded-full"
-                placeholder="Tu duda sobre esta clase…"
-                value={pregunta}
-                onChange={(evento) => setPregunta(evento.target.value)}
-              />
-              <button
-                className="boton-primario h-10 w-10 shrink-0 rounded-full p-0"
-                disabled={pensando || !pregunta.trim()}
-                aria-label="Enviar"
-              >
-                ↑
-              </button>
-            </form>
-          </div>
+          {esProfesor ? (
+            <PanelDudas
+              dudas={dudas}
+              titulo="Dudas sobre esta clase"
+              descripcion={`Lo que ${clase.grupo} preguntó específicamente de esta sesión.`}
+            />
+          ) : (
+            <PanelChat
+              titulo="Pregunta sobre esta clase"
+              descripcion="Responde solo con lo que se vio en esta sesión. Para dudas de todo el curso, regresa al listado y usa el chat de ahí."
+              mensajes={mensajes}
+              pensando={pensando}
+              onEnviar={preguntar}
+              sugerencias={SUGERENCIAS}
+              textoPensando="Buscando en esta clase"
+              marcador="Tu duda sobre esta clase…"
+            />
+          )}
         </aside>
       </div>
     </div>

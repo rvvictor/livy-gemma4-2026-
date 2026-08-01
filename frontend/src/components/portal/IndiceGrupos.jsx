@@ -1,8 +1,10 @@
-// Entrada al portal del alumno: sus materias y secciones.
+// Índice del portal. El alumno ve sus materias; el profesor ve exactamente lo
+// mismo, pero enmarcado como la vista de administrador de lo que reciben sus
+// grupos.
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { Aparece, Aviso, Encabezado, Esqueleto } from "../../components/ui.jsx";
+import { Aparece, Aviso, Encabezado, Esqueleto } from "../ui.jsx";
 import { api } from "../../lib/api.js";
 
 function fechaLegible(iso) {
@@ -13,7 +15,7 @@ function fechaLegible(iso) {
   });
 }
 
-export default function IndiceAlumno() {
+export default function IndiceGrupos({ modo, base }) {
   const [grupos, setGrupos] = useState(null);
   const [error, setError] = useState(null);
 
@@ -21,11 +23,17 @@ export default function IndiceAlumno() {
     api.gruposAlumno().then(setGrupos).catch((fallo) => setError(fallo.message));
   }, []);
 
+  const esProfesor = modo === "profesor";
+
   return (
     <div>
       <Encabezado
-        titulo="Tus clases"
-        descripcion="Todo lo que se vio en tu grupo, en las palabras de tu propio profesor. Si faltaste, aquí está la clase."
+        titulo={esProfesor ? "Portal de alumnos" : "Tus clases"}
+        descripcion={
+          esProfesor
+            ? "Esto es exactamente lo que ven tus alumnos de cada sección, más las dudas que le preguntan a Livy."
+            : "Todo lo que se vio en tu grupo, en las palabras de tu propio profesor. Si faltaste, aquí está la clase."
+        }
       />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
@@ -35,10 +43,7 @@ export default function IndiceAlumno() {
         <div className="grid gap-4 sm:grid-cols-2">
           {grupos.map((grupo, indice) => (
             <Aparece key={grupo.grupo_id} retraso={indice * 80}>
-              <Link
-                to={`/alumno/${grupo.grupo_id}`}
-                className="tarjeta-interactiva block h-full"
-              >
+              <Link to={`${base}/${grupo.grupo_id}`} className="tarjeta-interactiva block h-full">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="etiqueta">{grupo.clave}</p>

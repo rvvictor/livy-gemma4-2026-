@@ -225,7 +225,11 @@ Estructura la guía en Markdown:
 - Al menos cinco ejercicios o preguntas de autoevaluación coherentes con el nivel visto.
 - Una sección final "Si te perdiste" con los puntos donde el grupo mostró más dudas.
 
-No incluyas temas que este grupo no haya visto todavía. Es material de repaso, no de adelanto."""
+No incluyas temas que este grupo no haya visto todavía. Es material de repaso, no de adelanto.
+
+Formato: Markdown con encabezados de segundo nivel para cada tema. Nada de LaTeX ni signos
+de dólar —la guía se imprime como PDF y las fórmulas deben leerse en texto plano, como las
+dictaría el profesor: "x cuadrada menos nueve sobre x menos tres", "unión", "menor o igual que"."""
 
 
 def simulacion(clave: str) -> Any:
