@@ -4,7 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import RevisionHorario from "../../components/RevisionHorario.jsx";
-import { Aparece, Aviso, ChipRiesgo, Encabezado, Esqueleto } from "../../components/ui.jsx";
+import {
+  Aparece,
+  Aviso,
+  ChipRiesgo,
+  Encabezado,
+  Esqueleto,
+  useConfirmacion,
+} from "../../components/ui.jsx";
 import { useCiclo } from "../../estado.jsx";
 import { api } from "../../lib/api.js";
 
@@ -51,6 +58,7 @@ export default function Bitacora() {
   const [analizando, setAnalizando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const archivoRef = useRef(null);
+  const { pedir, dialogo } = useConfirmacion();
 
   useEffect(() => {
     let vigente = true;
@@ -167,6 +175,32 @@ export default function Bitacora() {
     }
   }
 
+  /** Vacía el horario para poder volver a cargarlo desde cero. */
+  function borrarHorario() {
+    pedir({
+      titulo: "Borrar todo el horario",
+      cuerpo: `Se eliminan las ${ciclo?.total_grupos ?? 0} secciones registradas. Es lo que se hace cuando Gemma leyó mal la foto y quedaron grupos que no existen.`,
+      consecuencias: [
+        "Se pierden todas las clases grabadas y el avance de cada sección",
+        "La agenda semanal queda vacía",
+      ],
+      conserva: ["Las materias y sus planes de estudio se quedan"],
+      confirmar: "Borrar el horario",
+      accion: async () => {
+        setError(null);
+        setAviso(null);
+        try {
+          const respuesta = await api.borrarHorario();
+          setAviso(respuesta.detalle);
+          await recargar();
+          setAgenda(await api.agenda(referencia));
+        } catch (fallo) {
+          setError(fallo.message);
+        }
+      },
+    });
+  }
+
   const porDia = useMemo(() => {
     if (!agenda) return [];
     const mapaDias = new Map();
@@ -218,6 +252,11 @@ export default function Bitacora() {
             <label htmlFor="archivo-horario" className="boton-primario cursor-pointer">
               {analizando ? "Gemma está leyendo…" : "Cargar horario con foto o PDF"}
             </label>
+            {ciclo?.total_grupos > 0 && !propuesta && (
+              <button className="boton-peligro" onClick={borrarHorario}>
+                Borrar horario
+              </button>
+            )}
           </>
         }
       />
@@ -519,6 +558,8 @@ export default function Bitacora() {
           </Aparece>
         )}
       </section>
+
+      {dialogo}
     </div>
   );
 }

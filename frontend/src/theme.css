@@ -74,6 +74,30 @@ body {
            disabled:cursor-not-allowed disabled:opacity-40;
   }
 
+  /* Acciones que quitan datos. Van en contorno, nunca en relleno: el rojo sólido
+     está reservado para la acción principal de cada pantalla, y borrar no lo es
+     en ninguna. El relleno solo aparece dentro del diálogo de confirmación, que
+     es el único sitio donde borrar sí es la acción principal. */
+  .boton-peligro {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-rojo/30
+           bg-blanco px-4 py-2 text-sm font-medium text-rojo transition-all duration-200
+           hover:border-rojo hover:bg-[#FDECEF] active:scale-[0.98]
+           disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .boton-peligro-solido {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-rojo px-5 py-2.5
+           text-sm font-semibold text-blanco transition-all duration-200
+           hover:bg-guinda-900 hover:shadow-[0_6px_20px_-6px_rgba(179,18,47,0.5)]
+           active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .enlace-peligro {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-gris
+           transition-colors duration-200 hover:bg-[#FDECEF] hover:text-rojo
+           disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
   .boton-fantasma {
     @apply inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm
            font-medium text-gris transition-colors duration-200 hover:bg-nieve hover:text-guinda;

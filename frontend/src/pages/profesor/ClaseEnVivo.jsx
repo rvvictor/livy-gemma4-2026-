@@ -15,6 +15,7 @@ import {
   Escribiendo,
   Esqueleto,
   TextoRico,
+  useConfirmacion,
 } from "../../components/ui.jsx";
 import { useCiclo } from "../../estado.jsx";
 import { api } from "../../lib/api.js";
@@ -25,8 +26,9 @@ import { crearDictado, soportaDictado } from "../../lib/speech.js";
 const MS_ENTRE_ENVIOS = 8000;
 
 export default function ClaseEnVivo() {
-  const { ciclo } = useCiclo();
+  const { ciclo, recargar } = useCiclo();
   const ubicacion = useLocation();
+  const { pedir, dialogo } = useConfirmacion();
 
   const [grupoId, setGrupoId] = useState(ubicacion.state?.grupoId ?? null);
   const [sesion, setSesion] = useState(null);
@@ -147,6 +149,46 @@ export default function ClaseEnVivo() {
     } finally {
       setConsultando(false);
     }
+  }
+
+  /**
+   * Tira la sesión abierta sin resumirla.
+   *
+   * Es la salida de la prueba de micrófono y del arranque en falso: sin esto,
+   * cada ensayo dejaría una sesión a medias colgada del grupo, que la agenda
+   * seguiría mostrando como "en curso" para siempre.
+   */
+  function descartar() {
+    pedir({
+      titulo: `Descartar la clase con ${grupo?.grupo ?? "este grupo"}`,
+      cuerpo: "Se tira la sesión abierta sin convertirla en memoria.",
+      consecuencias: [
+        transcripcion
+          ? `Se pierden los ${transcripcion.length} caracteres dictados`
+          : "Se elimina la sesión que quedó abierta",
+        "El grupo no avanza: no se registra ningún tema",
+      ],
+      conserva: ["El avance y las clases anteriores del grupo no se tocan"],
+      confirmar: "Descartar la clase",
+      accion: async () => {
+        dictadoRef.current?.detener();
+        setGrabando(false);
+        setParcial("");
+        setError(null);
+        try {
+          await api.borrarClase(sesion.id);
+          pendienteRef.current = "";
+          sesionRef.current = null;
+          setSesion(null);
+          setTranscripcion("");
+          setSegundos(0);
+          setHilo([]);
+          await recargar();
+        } catch (fallo) {
+          setError(fallo.message);
+        }
+      },
+    });
   }
 
   async function cerrar() {
@@ -319,7 +361,12 @@ export default function ClaseEnVivo() {
             ))}
           </div>
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {sesion && (
+              <button className="boton-peligro" onClick={descartar} disabled={cerrando}>
+                Descartar
+              </button>
+            )}
             {!grabando ? (
               <button className="boton-primario" onClick={iniciar} disabled={!grupoId || cerrando}>
                 Iniciar clase
@@ -357,6 +404,8 @@ export default function ClaseEnVivo() {
           </button>
         </form>
       </Aparece>
+
+      {dialogo}
     </div>
   );
 }

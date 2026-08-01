@@ -41,3 +41,14 @@ export function useCiclo() {
   if (!contexto) throw new Error("useCiclo debe usarse dentro de ProveedorCiclo");
   return contexto;
 }
+
+/**
+ * El ciclo cuando puede no haberlo.
+ *
+ * Las pantallas del portal se montan en dos sitios: dentro de la vista del
+ * profesor —donde el ciclo existe y hay que refrescarlo al borrar algo— y en la
+ * del alumno, que no lo tiene. Devuelve `null` en lugar de reventar.
+ */
+export function useCicloOpcional() {
+  return useContext(ContextoCiclo);
+}

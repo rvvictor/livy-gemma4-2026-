@@ -2,7 +2,7 @@
 // profesor deben entender en diez segundos qué se rompe hoy y qué arregla Livy.
 import { Link } from "react-router-dom";
 
-import { Aparece } from "../components/ui.jsx";
+import { Aparece, Isotipo, Logo } from "../components/ui.jsx";
 
 const GRUPOS_DEMO = [
   { nombre: "1CV1", avance: 0.58, nota: "Cálculo de límites", tono: "bg-guinda" },
@@ -49,7 +49,7 @@ export default function Landing() {
     <div className="min-h-full bg-blanco">
       <header className="sticky top-0 z-30 border-b border-borde bg-blanco/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <span className="text-xl font-semibold tracking-tight text-guinda">Livy</span>
+          <Logo className="h-7" />
           <nav className="flex items-center gap-2">
             <Link to="/alumno" className="boton-fantasma">
               Soy alumno
@@ -269,7 +269,10 @@ export default function Landing() {
 
       <footer className="border-t border-borde bg-blanco">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6 text-xs text-gris">
-          <span>Livy · Hackday Gemma 4 · Google Developer Group CDMX 2026</span>
+          <span className="flex items-center gap-2.5">
+            <Isotipo className="h-4" />
+            Livy · Hackday Gemma 4 · Google Developer Group CDMX 2026
+          </span>
           <span>El profesor siempre es el autor y el validador.</span>
         </div>
       </footer>

@@ -43,6 +43,7 @@ La aplicación tiene dos caras con rutas separadas: `/profesor` y `/alumno`.
 | **Clase en vivo** | `/profesor/clase` | Hilo de conversación: transcribe la sesión, permite preguntarle a Livy en medio de la clase y al cerrar genera la memoria estructurada |
 | **Plan de estudios** | `/profesor/plan` | El ciclo completo —todas las materias, sus secciones y su avance— y la carga del temario por visión |
 | **Portal de alumnos** | `/profesor/alumnos` | Vista de administrador de lo que reciben sus grupos, con el registro de lo que preguntaron |
+| **Datos** | `/profesor/datos` | La salida de todo lo que entró por visión: borrar materias, planes, secciones, clases grabadas y dudas, o dejar la base en blanco |
 
 ### Lado del alumno
 
@@ -206,22 +207,26 @@ backend/
     gemma.py        Único punto de contacto con Gemma 4
     prompts.py      Todos los prompts, juntos y auditables
     avance.py       Cálculo del avance por sección
+    borrado.py      Cascadas de borrado, para no dejar registros huérfanos
     models.py       Materia · Tema · Grupo · Sesion · Cobertura · MensajeChat
     seed.py         Dos materias conectadas y cinco grupos desfasados
     routers/
-      temario.py    Lectura del plan por visión
-      sesiones.py   Clase en vivo, consulta al vuelo y cierre
-      bitacora.py   Avance comparativo y recomendaciones
-      profesor.py   Agenda semanal y vista del ciclo completo
-      alumno.py     Clases, dudas y los dos alcances de chat
+      temario.py       Lectura del plan por visión
+      sesiones.py      Clase en vivo, consulta al vuelo y cierre
+      bitacora.py      Avance comparativo y recomendaciones
+      profesor.py      Agenda semanal y vista del ciclo completo
+      alumno.py        Clases, dudas y los dos alcances de chat
+      mantenimiento.py Todo lo que borra, junto y auditable de una sentada
 frontend/
+  public/           favicon.png · livy-og.png
   src/
     theme.css       Paleta guinda y animaciones
+    img/            livy.png (original) y las versiones sin fondo que usa la app
     lib/speech.js   Dictado continuo en es-MX
     lib/api.js      Cliente HTTP
     pages/
       Landing.jsx
-      profesor/     Bitacora · ClaseEnVivo · PlanDeEstudios
+      profesor/     Bitacora · ClaseEnVivo · PlanDeEstudios · Datos
       alumno/       Indice · Grupo · Clase · ChatGeneral
 notebook/
   gemma4_audio_asr.ipynb   Audio nativo de Gemma 4 E2B sobre GPU
@@ -244,7 +249,10 @@ semanal siempre tiene clases ya impartidas y clases pendientes.
 - El dictado del navegador depende de Chrome/Edge y de conexión a internet.
 - No hay autenticación: es un prototipo de hackday con datos de demostración.
 - El disco de Render es efímero en el tier gratuito; los datos se resiembran al
-  reiniciar el servicio.
+  reiniciar el servicio, salvo que se haya vaciado la base a propósito desde
+  `/profesor/datos` —esa decisión sí queda marcada y se respeta al arrancar.
+- Los borrados no piden autenticación, como el resto de la API: se protegen con
+  un diálogo de confirmación en la interfaz, no con permisos.
 - El troceo de audio del notebook pierde el contexto entre tramos consecutivos.
 
 ## Licencia

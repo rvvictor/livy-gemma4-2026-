@@ -217,10 +217,21 @@ def ciclo(db: Session = Depends(obtener_sesion)) -> dict:
     """Todas las materias del profesor, su plan y el avance de cada sección.
 
     Es la respuesta a "¿cómo va mi semestre completo?", no a "¿cómo va este grupo?".
+
+    Una base vacía no es un error, es el estado inicial de un profesor que acaba
+    de borrar todo y va a cargar su horario: se responde con la misma estructura
+    sin nada dentro para que la interfaz siga en pie.
     """
     materias = db.exec(select(Materia)).all()
     if not materias:
-        raise HTTPException(404, "No hay materias registradas")
+        return {
+            "profesor": "",
+            "ciclo": "",
+            "materias": [],
+            "grupos_compartidos": [],
+            "total_grupos": 0,
+            "total_alumnos": 0,
+        }
 
     salida = []
     for materia in materias:

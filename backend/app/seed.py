@@ -31,10 +31,15 @@ from .contenido_demo import (
     TEMARIO_GEOMETRIA,
 )
 from .db import motor
-from .models import Cobertura, Grupo, Materia, MensajeChat, Sesion, Tema
+from .models import Ajuste, Cobertura, Grupo, Materia, MensajeChat, Sesion, Tema
 
 # Se retrocede lo suficiente para que quepa el historial de cualquier grupo.
 SEMANAS_DE_HISTORIA = 10
+
+# Bandera que deja el profesor cuando vacía la base a propósito. Mientras exista,
+# este módulo no vuelve a sembrar: un borrado tiene que sobrevivir al reinicio
+# del servidor o no es un borrado.
+MARCA_SIEMBRA = "siembra_demo"
 
 DIAS_NOMBRE = {1: "Lunes", 2: "Martes", 3: "Miércoles", 4: "Jueves", 5: "Viernes"}
 
@@ -106,7 +111,7 @@ def _horario_legible(dias: list[int], inicio: str, fin: str) -> str:
 def sembrar_si_esta_vacia() -> None:
     """Crea las materias de demostración solo si no hay nada en la base."""
     with Session(motor) as db:
-        if db.exec(select(Materia)).first():
+        if db.exec(select(Materia)).first() or db.get(Ajuste, MARCA_SIEMBRA):
             return
 
         hoy = date.today()

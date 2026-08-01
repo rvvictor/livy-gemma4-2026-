@@ -6,7 +6,14 @@
 // una pantalla de revisión: el modelo transcribe, el profesor sigue siendo el autor.
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Aparece, Aviso, BarraAvance, Encabezado, Esqueleto } from "../../components/ui.jsx";
+import {
+  Aparece,
+  Aviso,
+  BarraAvance,
+  Encabezado,
+  Esqueleto,
+  useConfirmacion,
+} from "../../components/ui.jsx";
 import { useCiclo } from "../../estado.jsx";
 import { api } from "../../lib/api.js";
 
@@ -25,6 +32,7 @@ export default function PlanDeEstudios() {
   const [error, setError] = useState(null);
   const [aviso, setAviso] = useState(null);
   const archivoRef = useRef(null);
+  const { pedir, dialogo } = useConfirmacion();
 
   useEffect(() => {
     if (!ciclo?.materias?.length) return;
@@ -107,13 +115,41 @@ export default function PlanDeEstudios() {
     }
   }
 
+  function borrarTemario() {
+    pedir({
+      titulo: `Borrar el plan de ${materia.nombre}`,
+      cuerpo: `Se eliminan los ${materia.temas.length} temas cargados. Es lo que se hace cuando Gemma leyó mal el documento y conviene volver a subirlo.`,
+      consecuencias: [
+        "El avance de todas las secciones vuelve a cero",
+        "Habrá que volver a cerrar las clases para reconstruirlo",
+      ],
+      conserva: ["Las clases grabadas y sus resúmenes se quedan"],
+      confirmar: "Borrar el plan",
+      accion: async () => {
+        setError(null);
+        setAviso(null);
+        try {
+          const respuesta = await api.borrarTemario(materiaId);
+          setAviso(respuesta.detalle);
+          await recargar();
+        } catch (fallo) {
+          setError(fallo.message);
+        }
+      },
+    });
+  }
+
   if (cargando || !ciclo) return <Esqueleto filas={4} />;
 
   return (
     <div className="space-y-10">
       <Encabezado
-        titulo={`Tu ciclo ${ciclo.ciclo}`}
-        descripcion={`${ciclo.profesor} · ${ciclo.materias.length} materias · ${ciclo.total_grupos} secciones · ${ciclo.total_alumnos} alumnos en total`}
+        titulo={ciclo.ciclo ? `Tu ciclo ${ciclo.ciclo}` : "Tu ciclo"}
+        descripcion={
+          ciclo.materias.length
+            ? `${ciclo.profesor} · ${ciclo.materias.length} materias · ${ciclo.total_grupos} secciones · ${ciclo.total_alumnos} alumnos en total`
+            : "Todavía no hay materias. Carga tu horario desde la bitácora para crearlas."
+        }
       />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
@@ -260,7 +296,12 @@ export default function PlanDeEstudios() {
                   Cada punto indica si esa sección ya cubrió el tema.
                 </p>
               </div>
-              <>
+              <div className="flex flex-wrap gap-2">
+                {materia.temas.length > 0 && !propuesta && (
+                  <button className="boton-peligro" onClick={borrarTemario}>
+                    Borrar plan
+                  </button>
+                )}
                 <input
                   ref={archivoRef}
                   id="archivo-temario"
@@ -272,7 +313,7 @@ export default function PlanDeEstudios() {
                 <label htmlFor="archivo-temario" className="boton-primario cursor-pointer">
                   {analizando ? "Gemma está leyendo…" : "Cargar temario con foto o PDF"}
                 </label>
-              </>
+              </div>
             </div>
 
             {propuesta ? (
@@ -338,6 +379,8 @@ export default function PlanDeEstudios() {
           </section>
         </>
       )}
+
+      {dialogo}
     </div>
   );
 }

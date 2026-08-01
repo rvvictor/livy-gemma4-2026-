@@ -6,10 +6,11 @@
 // El costado cambia según quién mira: el alumno tiene el chat de dudas globales
 // sobre todo el curso; el profesor, el registro de lo que ese grupo preguntó.
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 
-import { Aparece, Aviso, Encabezado, Esqueleto } from "../ui.jsx";
+import { Aparece, Aviso, Encabezado, Esqueleto, useConfirmacion } from "../ui.jsx";
 import { PanelChat, PanelDudas, Regresar, VistaGuia } from "./piezas.jsx";
+import { useCicloOpcional } from "../../estado.jsx";
 import { api } from "../../lib/api.js";
 
 const SUGERENCIAS = [
@@ -28,6 +29,7 @@ function fechaLarga(iso) {
 
 export default function ClasesDeGrupo({ modo, base }) {
   const { grupoId } = useParams();
+  const ubicacion = useLocation();
   const esProfesor = modo === "profesor";
 
   const [datos, setDatos] = useState(null);
@@ -37,6 +39,16 @@ export default function ClasesDeGrupo({ modo, base }) {
   const [guia, setGuia] = useState(null);
   const [generando, setGenerando] = useState(false);
   const [error, setError] = useState(null);
+  const [aviso, setAviso] = useState(null);
+
+  const ciclo = useCicloOpcional(); // solo existe dentro de la vista del profesor
+  const { pedir, dialogo } = useConfirmacion();
+
+  // Al borrar una clase desde su propia página se regresa aquí con el aviso de
+  // lo que se eliminó, para que la confirmación no se pierda en el camino.
+  useEffect(() => {
+    if (ubicacion.state?.aviso) setAviso(ubicacion.state.aviso);
+  }, [ubicacion.state]);
 
   useEffect(() => {
     setDatos(null);
@@ -84,6 +96,34 @@ export default function ClasesDeGrupo({ modo, base }) {
     }
   }
 
+  /** Recarga el listado —y el ciclo del profesor— después de borrar algo. */
+  async function releer(detalle) {
+    setAviso(detalle);
+    const [clases, nuevasDudas] = await Promise.all([
+      api.clases(grupoId),
+      api.dudas(grupoId, "general"),
+    ]);
+    setDatos(clases);
+    setDudas(nuevasDudas);
+    await ciclo?.recargar();
+  }
+
+  function borrar(peticion, llamada) {
+    pedir({
+      ...peticion,
+      accion: async () => {
+        setError(null);
+        setAviso(null);
+        try {
+          const respuesta = await llamada();
+          await releer(respuesta.detalle);
+        } catch (fallo) {
+          setError(fallo.message);
+        }
+      },
+    });
+  }
+
   if (error && !datos) return <Aviso tipo="error">{error}</Aviso>;
   if (!datos) return <Esqueleto filas={4} />;
 
@@ -111,13 +151,42 @@ export default function ClasesDeGrupo({ modo, base }) {
         titulo={datos.materia}
         descripcion={`Grupo ${datos.grupo} · ${datos.profesor} · ${datos.horario}`}
         acciones={
-          <button className="boton-primario" onClick={generarGuia} disabled={generando}>
-            {generando ? "Gemma está armando la guía…" : "Generar guía de estudio"}
-          </button>
+          <>
+            {esProfesor && datos.clases.length > 0 && (
+              <button
+                className="boton-peligro"
+                onClick={() =>
+                  borrar(
+                    {
+                      titulo: `Borrar las clases de ${datos.grupo}`,
+                      cuerpo: `Se eliminan las ${datos.clases.length} clases grabadas de esta sección.`,
+                      consecuencias: [
+                        "Se pierden los resúmenes y las transcripciones",
+                        "El avance de la sección vuelve a cero",
+                        "Tus alumnos dejan de verlas en su portal",
+                      ],
+                      conserva: [
+                        "La sección y su horario se quedan",
+                        "Las demás secciones de la materia no se tocan",
+                      ],
+                      confirmar: "Borrar las clases",
+                    },
+                    () => api.borrarClasesDeGrupo(grupoId),
+                  )
+                }
+              >
+                Borrar clases grabadas
+              </button>
+            )}
+            <button className="boton-primario" onClick={generarGuia} disabled={generando}>
+              {generando ? "Gemma está armando la guía…" : "Generar guía de estudio"}
+            </button>
+          </>
         }
       />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
+      {aviso && <Aviso tipo="alerta">{aviso}</Aviso>}
 
       <div className="grid gap-8 lg:grid-cols-[1fr_330px]">
         <section className="space-y-3">
@@ -167,6 +236,19 @@ export default function ClasesDeGrupo({ modo, base }) {
                 dudas={dudas}
                 titulo="Lo que pregunta tu grupo"
                 descripcion={`Dudas de ${datos.grupo} sobre el curso en general. Las de cada clase están dentro de su propia sesión.`}
+                onBorrar={() =>
+                  borrar(
+                    {
+                      titulo: `Borrar las dudas de ${datos.grupo}`,
+                      cuerpo:
+                        "Se elimina el registro de todo lo que este grupo le preguntó a Livy sobre el curso completo.",
+                      consecuencias: ["Se pierde el rastro de dónde se estaban atorando"],
+                      conserva: ["Las dudas hechas dentro de cada clase se quedan"],
+                      confirmar: "Borrar las dudas",
+                    },
+                    () => api.borrarDudasDeGrupo(grupoId, "general"),
+                  )
+                }
               />
             ) : (
               <PanelChat
@@ -181,6 +263,8 @@ export default function ClasesDeGrupo({ modo, base }) {
           </Aparece>
         </aside>
       </div>
+
+      {dialogo}
     </div>
   );
 }

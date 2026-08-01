@@ -110,6 +110,18 @@ class Cobertura(SQLModel, table=True):
     evidencia: str = ""
 
 
+class Ajuste(SQLModel, table=True):
+    """Banderas de la instalación, una fila por clave.
+
+    Existe por una sola razón: recordar que el profesor ya vació la base a
+    propósito, para que el sembrado de demostración no se la vuelva a llenar en
+    el siguiente arranque del servidor.
+    """
+
+    clave: str = Field(primary_key=True)
+    valor: str = ""
+
+
 class MensajeChat(SQLModel, table=True):
     """Historial del chat del alumno.
 

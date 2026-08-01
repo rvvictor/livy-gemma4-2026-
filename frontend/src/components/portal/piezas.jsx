@@ -8,6 +8,7 @@ import {
   Aparece,
   Burbuja,
   Escribiendo,
+  Logo,
   TextoRico,
 } from "../ui.jsx";
 
@@ -24,13 +25,25 @@ export function Regresar({ a, children }) {
   );
 }
 
-/** Panel de solo lectura con lo que los alumnos preguntaron. */
-export function PanelDudas({ dudas, titulo, descripcion }) {
+/**
+ * Panel de solo lectura con lo que los alumnos preguntaron.
+ *
+ * `onBorrar` es opcional: solo la vista del profesor puede limpiar el registro,
+ * y solo tiene sentido ofrecerlo cuando hay algo que limpiar.
+ */
+export function PanelDudas({ dudas, titulo, descripcion, onBorrar }) {
   const [abierta, setAbierta] = useState(null);
 
   return (
     <div className="tarjeta">
-      <p className="etiqueta">{titulo}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="etiqueta">{titulo}</p>
+        {onBorrar && dudas.length > 0 && (
+          <button className="enlace-peligro shrink-0" onClick={onBorrar}>
+            Borrar registro
+          </button>
+        )}
+      </div>
       <p className="mt-1 text-xs leading-relaxed text-gris">{descripcion}</p>
 
       <div className="mt-4 space-y-3">
@@ -180,6 +193,10 @@ export function VistaGuia({ guia, materia, grupo, profesor, onCerrar }) {
 
       <article className="imprimible tarjeta">
         <header className="mb-6 border-b border-borde pb-4">
+          {/* El logotipo va dentro de `.imprimible` para que también salga en el
+              PDF: la guía se comparte entre compañeros y conviene que se sepa de
+              dónde salió. */}
+          <Logo className="mb-4 h-6" />
           <p className="etiqueta">Guía de estudio</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-tinta">{materia}</h1>
           <p className="mt-1 text-sm text-gris">

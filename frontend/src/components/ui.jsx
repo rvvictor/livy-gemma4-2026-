@@ -1,5 +1,32 @@
 // Piezas visuales compartidas. Se mantienen juntas para que la paleta y las
 // animaciones se apliquen de forma consistente en todas las pantallas.
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+
+import iconoLivy from "../img/livy-icono.png";
+import marcaLivy from "../img/livy-marca.png";
+
+/**
+ * Logotipo completo. Se recortó el fondo del original a transparencia para que
+ * se apoye igual de bien sobre el blanco de las cabeceras que sobre el hueso.
+ */
+export function Logo({ className = "h-7" }) {
+  return (
+    <img
+      src={marcaLivy}
+      alt="Livy"
+      draggable={false}
+      className={`${className} w-auto select-none`}
+    />
+  );
+}
+
+/** Solo las tres barras: para los espacios donde el nombre ya está escrito. */
+export function Isotipo({ className = "h-6" }) {
+  return (
+    <img src={iconoLivy} alt="" aria-hidden draggable={false} className={`${className} w-auto`} />
+  );
+}
 
 /** Envoltorio que hace aparecer su contenido con un retraso escalonado. */
 export function Aparece({ retraso = 0, children, className = "", como: Como = "div", ...resto }) {
@@ -97,6 +124,113 @@ export function Encabezado({ titulo, descripcion, acciones }) {
       </div>
       {acciones && <div className="flex flex-wrap gap-2">{acciones}</div>}
     </Aparece>
+  );
+}
+
+/**
+ * Confirmación para todo lo que borra.
+ *
+ * Ninguna acción destructiva de Livy se ejecuta al primer clic: lo que se pierde
+ * —la bitácora de un grupo, la memoria de una clase— no se puede reconstruir sin
+ * volver a dar la clase. El diálogo enumera las consecuencias por escrito antes
+ * de dejar confirmar.
+ *
+ * Se usa a través de `useConfirmacion`, que devuelve la función para pedirla y el
+ * diálogo ya cableado para colgarlo al final de la pantalla.
+ */
+export function useConfirmacion() {
+  const [peticion, setPeticion] = useState(null);
+  const [trabajando, setTrabajando] = useState(false);
+
+  async function confirmar() {
+    if (!peticion) return;
+    setTrabajando(true);
+    try {
+      await peticion.accion();
+    } finally {
+      setTrabajando(false);
+      setPeticion(null);
+    }
+  }
+
+  return {
+    pedir: setPeticion,
+    dialogo: (
+      <DialogoConfirmar
+        peticion={peticion}
+        trabajando={trabajando}
+        onConfirmar={confirmar}
+        onCancelar={() => !trabajando && setPeticion(null)}
+      />
+    ),
+  };
+}
+
+function DialogoConfirmar({ peticion, trabajando, onConfirmar, onCancelar }) {
+  useEffect(() => {
+    if (!peticion) return undefined;
+    const alTeclear = (evento) => evento.key === "Escape" && onCancelar();
+    document.addEventListener("keydown", alTeclear);
+    return () => document.removeEventListener("keydown", alTeclear);
+  }, [peticion, onCancelar]);
+
+  if (!peticion) return null;
+
+  return createPortal(
+    <div
+      className="desvanece fixed inset-0 z-50 flex items-center justify-center bg-tinta/40 p-4 backdrop-blur-sm"
+      onMouseDown={(evento) => evento.target === evento.currentTarget && onCancelar()}
+    >
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-label={peticion.titulo}
+        className="aparece w-full max-w-md rounded-2xl border border-borde bg-blanco p-6
+                   shadow-[0_30px_80px_-30px_rgba(26,20,22,0.55)]"
+      >
+        <h2 className="text-lg font-semibold tracking-tight text-tinta">{peticion.titulo}</h2>
+        {peticion.cuerpo && (
+          <p className="mt-2 text-sm leading-relaxed text-gris">{peticion.cuerpo}</p>
+        )}
+
+        {peticion.consecuencias?.length > 0 && (
+          <ul className="mt-4 space-y-1.5 rounded-xl bg-[#FDECEF] px-4 py-3 text-sm text-rojo">
+            {peticion.consecuencias.map((consecuencia) => (
+              <li key={consecuencia} className="flex gap-2">
+                <span aria-hidden>·</span>
+                {consecuencia}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {peticion.conserva?.length > 0 && (
+          <ul className="mt-2 space-y-1.5 rounded-xl bg-hueso px-4 py-3 text-sm text-gris">
+            {peticion.conserva.map((detalle) => (
+              <li key={detalle} className="flex gap-2">
+                <span aria-hidden>·</span>
+                {detalle}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button className="boton-secundario" onClick={onCancelar} disabled={trabajando}>
+            Cancelar
+          </button>
+          <button
+            className="boton-peligro-solido"
+            onClick={onConfirmar}
+            disabled={trabajando}
+            autoFocus
+          >
+            {trabajando ? "Borrando…" : peticion.confirmar || "Borrar"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

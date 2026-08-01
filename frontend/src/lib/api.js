@@ -98,4 +98,27 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ enfoque }),
     }),
+
+  // — Borrado y limpieza —
+  // Todas responden `{ borrado: {...}, detalle }` para poder decirle al profesor
+  // exactamente qué se fue en lugar de un "listo" a ciegas.
+  borrarMateria: (materiaId) => pedir(`/api/materias/${materiaId}`, { method: "DELETE" }),
+  borrarTemario: (materiaId) =>
+    pedir(`/api/materias/${materiaId}/temario`, { method: "DELETE" }),
+  borrarGrupo: (grupoId) => pedir(`/api/grupos/${grupoId}`, { method: "DELETE" }),
+  borrarClasesDeGrupo: (grupoId) =>
+    pedir(`/api/grupos/${grupoId}/sesiones`, { method: "DELETE" }),
+  borrarDudasDeGrupo: (grupoId, alcance = "todo") =>
+    pedir(`/api/grupos/${grupoId}/chat?alcance=${alcance}`, { method: "DELETE" }),
+  borrarClase: (sesionId) => pedir(`/api/sesiones/${sesionId}`, { method: "DELETE" }),
+  borrarTranscripcion: (sesionId) =>
+    pedir(`/api/sesiones/${sesionId}/transcripcion`, { method: "DELETE" }),
+  borrarDudasDeClase: (sesionId) => pedir(`/api/sesiones/${sesionId}/chat`, { method: "DELETE" }),
+  reabrirClase: (sesionId) => pedir(`/api/sesiones/${sesionId}/reabrir`, { method: "POST" }),
+  borrarHorario: () => pedir("/api/profesor/horario", { method: "DELETE" }),
+  reiniciar: (conDemo) =>
+    pedir("/api/mantenimiento/reiniciar", {
+      method: "POST",
+      body: JSON.stringify({ con_demo: conDemo }),
+    }),
 };

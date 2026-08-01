@@ -3,10 +3,12 @@ import { Link, NavLink, Navigate, Outlet, Route, Routes } from "react-router-dom
 import ClasesDeGrupo from "./components/portal/ClasesDeGrupo.jsx";
 import DetalleDeClase from "./components/portal/DetalleDeClase.jsx";
 import IndiceGrupos from "./components/portal/IndiceGrupos.jsx";
+import { Logo } from "./components/ui.jsx";
 import { ProveedorCiclo } from "./estado.jsx";
 import Landing from "./pages/Landing.jsx";
 import Bitacora from "./pages/profesor/Bitacora.jsx";
 import ClaseEnVivo from "./pages/profesor/ClaseEnVivo.jsx";
+import Datos from "./pages/profesor/Datos.jsx";
 import PlanDeEstudios from "./pages/profesor/PlanDeEstudios.jsx";
 
 const SECCIONES_PROFESOR = [
@@ -14,14 +16,13 @@ const SECCIONES_PROFESOR = [
   { ruta: "/profesor/clase", nombre: "Clase en vivo" },
   { ruta: "/profesor/plan", nombre: "Plan de estudios" },
   { ruta: "/profesor/alumnos", nombre: "Portal de alumnos" },
+  { ruta: "/profesor/datos", nombre: "Datos" },
 ];
 
 function Marca({ sufijo }) {
   return (
-    <Link to="/" className="group flex items-baseline gap-2.5">
-      <span className="text-xl font-semibold tracking-tight text-guinda transition-opacity group-hover:opacity-70">
-        Livy
-      </span>
+    <Link to="/" className="group flex items-center gap-3">
+      <Logo className="h-7 transition-opacity group-hover:opacity-70" />
       {sufijo && <span className="hidden text-sm text-gris sm:inline">{sufijo}</span>}
     </Link>
   );
@@ -79,7 +80,7 @@ function MarcoAlumno() {
     <div className="flex min-h-full flex-col">
       <header className="no-imprimir sticky top-0 z-30 border-b border-borde bg-blanco/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-4">
-          <div className="flex items-baseline gap-2.5">
+          <div className="flex items-center gap-2.5">
             <Marca />
             <span className="chip bg-nieve text-guinda-900">Portal del alumno</span>
           </div>
@@ -114,6 +115,7 @@ export default function App() {
         <Route path="bitacora" element={<Bitacora />} />
         <Route path="clase" element={<ClaseEnVivo />} />
         <Route path="plan" element={<PlanDeEstudios />} />
+        <Route path="datos" element={<Datos />} />
         {/* El portal de alumnos, visto desde la administración */}
         <Route
           path="alumnos"

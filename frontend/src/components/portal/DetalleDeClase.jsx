@@ -8,10 +8,11 @@
 // sesión —no se mezcla con el resto del semestre— y el profesor ve lo que se
 // preguntó sobre esta clase en particular.
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { Aparece, Aviso, Esqueleto, TextoRico } from "../ui.jsx";
+import { Aparece, Aviso, Esqueleto, TextoRico, useConfirmacion } from "../ui.jsx";
 import { PanelChat, PanelDudas, Regresar } from "./piezas.jsx";
+import { useCicloOpcional } from "../../estado.jsx";
 import { api } from "../../lib/api.js";
 
 const SUGERENCIAS = [
@@ -31,6 +32,7 @@ function fechaLarga(iso) {
 export default function DetalleDeClase({ modo, base }) {
   const { sesionId } = useParams();
   const esProfesor = modo === "profesor";
+  const navegar = useNavigate();
 
   const [clase, setClase] = useState(null);
   const [vista, setVista] = useState("resumen"); // resumen | transcripcion
@@ -38,6 +40,10 @@ export default function DetalleDeClase({ modo, base }) {
   const [mensajes, setMensajes] = useState([]);
   const [pensando, setPensando] = useState(false);
   const [error, setError] = useState(null);
+  const [aviso, setAviso] = useState(null);
+
+  const ciclo = useCicloOpcional(); // solo existe dentro de la vista del profesor
+  const { pedir, dialogo } = useConfirmacion();
 
   useEffect(() => {
     setClase(null);
@@ -69,6 +75,41 @@ export default function DetalleDeClase({ modo, base }) {
     } finally {
       setPensando(false);
     }
+  }
+
+  /**
+   * Lanza un borrado sobre esta clase.
+   *
+   * `salir` marca las acciones tras las cuales la página ya no puede existir:
+   * borrarla o reabrirla la saca del portal —solo se publican las clases
+   * cerradas— así que hay que devolver al profesor al listado del grupo.
+   */
+  function borrar(peticion, llamada, { salir = false } = {}) {
+    const grupoId = clase.grupo_id;
+    pedir({
+      ...peticion,
+      accion: async () => {
+        setError(null);
+        setAviso(null);
+        try {
+          const respuesta = await llamada();
+          await ciclo?.recargar();
+          if (salir) {
+            navegar(`${base}/${grupoId}`, { state: { aviso: respuesta.detalle } });
+            return;
+          }
+          const [detalle, nuevasDudas] = await Promise.all([
+            api.clase(sesionId),
+            api.dudasDeClase(sesionId),
+          ]);
+          setClase(detalle);
+          setDudas(nuevasDudas);
+          setAviso(respuesta.detalle);
+        } catch (fallo) {
+          setError(fallo.message);
+        }
+      },
+    });
   }
 
   if (error && !clase) return <Aviso tipo="error">{error}</Aviso>;
@@ -120,9 +161,96 @@ export default function DetalleDeClase({ modo, base }) {
         </div>
       </Aparece>
 
+      {/* Controles de mantenimiento de la sesión. Van aparte y en tono discreto:
+          son de uso raro y ninguno se puede deshacer. */}
+      {esProfesor && (
+        <Aparece className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-borde bg-hueso px-4 py-2.5">
+          <span className="mr-auto text-xs text-gris">
+            Estos controles no los ven tus alumnos.
+          </span>
+
+          <button
+            className="enlace-peligro"
+            disabled={!clase.transcripcion}
+            onClick={() =>
+              borrar(
+                {
+                  titulo: "Borrar la transcripción",
+                  cuerpo: `Se eliminan los ${clase.transcripcion.length} caracteres de lo que se dijo en el salón.`,
+                  consecuencias: [
+                    "Livy dejará de poder citar textualmente esta clase",
+                    "Las respuestas sobre esta sesión se apoyarán solo en el resumen",
+                  ],
+                  conserva: [
+                    "El resumen, los puntos clave y el avance se quedan",
+                    "La clase sigue publicada para tus alumnos",
+                  ],
+                  confirmar: "Borrar la transcripción",
+                },
+                () => api.borrarTranscripcion(sesionId),
+              )
+            }
+          >
+            Borrar transcripción
+          </button>
+
+          <button
+            className="enlace-peligro"
+            disabled={!clase.transcripcion}
+            onClick={() =>
+              borrar(
+                {
+                  titulo: "Volver a generar la memoria",
+                  cuerpo:
+                    "La clase se reabre y Gemma podrá resumirla otra vez sobre la misma transcripción. Es lo que se hace cuando el resumen salió mal o marcó temas que no se tocaron.",
+                  consecuencias: [
+                    "Se pierde el resumen actual y los temas que marcó",
+                    "El avance de la sección baja hasta que la vuelvas a cerrar",
+                    "La clase sale del portal de alumnos mientras esté abierta",
+                  ],
+                  conserva: ["La transcripción se conserva íntegra"],
+                  confirmar: "Reabrir la clase",
+                },
+                () => api.reabrirClase(sesionId),
+                { salir: true },
+              )
+            }
+          >
+            Volver a generar la memoria
+          </button>
+
+          <button
+            className="enlace-peligro"
+            onClick={() =>
+              borrar(
+                {
+                  titulo: "Borrar esta clase",
+                  cuerpo: `Se elimina «${clase.titulo}» del ${fechaLarga(clase.fecha)}.`,
+                  consecuencias: [
+                    "Se pierden el resumen y la transcripción",
+                    "Los temas que cubrió dejan de contar en el avance de la sección",
+                    "Se pierden las dudas que se preguntaron sobre ella",
+                  ],
+                  confirmar: "Borrar la clase",
+                },
+                () => api.borrarClase(sesionId),
+                { salir: true },
+              )
+            }
+          >
+            Borrar la clase
+          </button>
+        </Aparece>
+      )}
+
       {error && (
         <div className="mb-4">
           <Aviso tipo="error">{error}</Aviso>
+        </div>
+      )}
+      {aviso && (
+        <div className="mb-4">
+          <Aviso tipo="alerta">{aviso}</Aviso>
         </div>
       )}
 
@@ -207,6 +335,18 @@ export default function DetalleDeClase({ modo, base }) {
               dudas={dudas}
               titulo="Dudas sobre esta clase"
               descripcion={`Lo que ${clase.grupo} preguntó específicamente de esta sesión.`}
+              onBorrar={() =>
+                borrar(
+                  {
+                    titulo: "Borrar las dudas de esta clase",
+                    cuerpo: `Se elimina lo que ${clase.grupo} preguntó sobre esta sesión.`,
+                    consecuencias: ["Se pierde el rastro de qué no quedó claro ese día"],
+                    conserva: ["Las dudas generales del curso se quedan"],
+                    confirmar: "Borrar las dudas",
+                  },
+                  () => api.borrarDudasDeClase(sesionId),
+                )
+              }
             />
           ) : (
             <PanelChat
@@ -222,6 +362,8 @@ export default function DetalleDeClase({ modo, base }) {
           )}
         </aside>
       </div>
+
+      {dialogo}
     </div>
   );
 }
