@@ -33,12 +33,24 @@ semanas por ciclo escolar (Gallup / Walton Family Foundation, 2025)—.
 
 ## Qué hace
 
-| Pantalla | Qué resuelve |
-| :--- | :--- |
-| **Bitácora** | Avance de cada sección contra el plan, la brecha entre grupos y el siguiente tema recomendado para cada uno |
-| **Clase en vivo** | Abre la sesión, transcribe lo que se dice y al cerrar genera la memoria estructurada |
-| **Plan de estudios** | El profesor sube una foto o PDF de su temario y Gemma 4 lo lee con visión; él revisa antes de guardar |
-| **Portal del alumno** | Consulta de solo lectura de sus clases y chat anclado a lo que su profesor enseñó a *su* grupo |
+La aplicación tiene dos caras con rutas separadas: `/profesor` y `/alumno`.
+
+### Lado del profesor
+
+| Pantalla | Ruta | Qué resuelve |
+| :--- | :--- | :--- |
+| **Bitácora** | `/profesor/bitacora` | Agenda de la semana con el tema que toca en cada clase, el siguiente paso sugerido por sección, y el mapa comparativo del plan |
+| **Clase en vivo** | `/profesor/clase` | Hilo de conversación: transcribe la sesión, permite preguntarle a Livy en medio de la clase y al cerrar genera la memoria estructurada |
+| **Plan de estudios** | `/profesor/plan` | El ciclo completo —todas las materias, sus secciones y su avance— y la carga del temario por visión |
+
+### Lado del alumno
+
+| Pantalla | Ruta | Qué resuelve |
+| :--- | :--- | :--- |
+| **Mis materias** | `/alumno` | Todas las secciones a las que pertenece |
+| **Clases del grupo** | `/alumno/:grupoId` | Listado de sesiones y panel con las dudas que ya preguntaron sus compañeros |
+| **Una clase** | `/alumno/clase/:sesionId` | Liga propia por sesión: resumen extenso, transcripción completa y chat acotado a esa clase |
+| **Chat del curso** | `/alumno/:grupoId/chat` | Preguntas sobre todo lo visto en el semestre |
 
 ---
 
@@ -55,7 +67,9 @@ sea auditable qué se le pide al modelo en cada función.
 | Resumir la clase en memoria estructurada | **Razonamiento** sobre transcripción cruda | `routers/sesiones.py` |
 | Mapear lo dicho contra el plan de estudios | **Salida estructurada** con nivel de cobertura por tema | `routers/sesiones.py` |
 | Recomendar el siguiente tema **por sección** | **Razonamiento comparativo** entre grupos y sesiones restantes | `routers/bitacora.py` |
+| Consulta del profesor en medio de la clase | **Razonamiento** sobre la transcripción parcial en curso | `routers/sesiones.py` |
 | Chat del alumno anclado a sus clases | **Contexto de 256K** con el historial completo del grupo | `routers/alumno.py` |
+| Chat acotado a una sola sesión | Contexto reducido a esa clase para no mezclar el semestre | `routers/alumno.py` |
 | Guía de estudio a demanda | Síntesis de las clases reales del grupo | `routers/alumno.py` |
 | **Transcripción de audio** | **Audio nativo de Gemma 4 E2B** | [`notebook/gemma4_audio_asr.ipynb`](notebook/gemma4_audio_asr.ipynb) |
 
@@ -174,17 +188,36 @@ backend/
     gemma.py        Único punto de contacto con Gemma 4
     prompts.py      Todos los prompts, juntos y auditables
     avance.py       Cálculo del avance por sección
-    models.py       Materia · Tema · Grupo · Sesion · Cobertura
-    seed.py         Los tres grupos desfasados de la demostración
-    routers/        temario · sesiones · bitacora · alumno
+    models.py       Materia · Tema · Grupo · Sesion · Cobertura · MensajeChat
+    seed.py         Dos materias conectadas y cinco grupos desfasados
+    routers/
+      temario.py    Lectura del plan por visión
+      sesiones.py   Clase en vivo, consulta al vuelo y cierre
+      bitacora.py   Avance comparativo y recomendaciones
+      profesor.py   Agenda semanal y vista del ciclo completo
+      alumno.py     Clases, dudas y los dos alcances de chat
 frontend/
   src/
+    theme.css       Paleta guinda y animaciones
     lib/speech.js   Dictado continuo en es-MX
     lib/api.js      Cliente HTTP
-    pages/          Bitacora · ClaseEnVivo · Temario · PortalAlumno
+    pages/
+      Landing.jsx
+      profesor/     Bitacora · ClaseEnVivo · PlanDeEstudios
+      alumno/       Indice · Grupo · Clase · ChatGeneral
 notebook/
   gemma4_audio_asr.ipynb   Audio nativo de Gemma 4 E2B sobre GPU
 ```
+
+### Los datos de demostración cuentan la historia
+
+Una profesora con **dos materias conectadas** —Cálculo Diferencial y Geometría
+Analítica, donde el grupo 1CV1 lleva las dos— y **cinco secciones en cinco puntos
+distintos del plan**: una al corriente, una que perdió una sesión por un puente y
+otra que dejó un tema a medias por un simulacro de evacuación.
+
+Las fechas se generan relativas al día en que se ejecuta, de modo que la agenda
+semanal siempre tiene clases ya impartidas y clases pendientes.
 
 ---
 

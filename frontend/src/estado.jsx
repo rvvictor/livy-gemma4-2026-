@@ -1,14 +1,15 @@
-// Estado compartido mínimo: la materia del profesor y sus grupos.
-// Un solo contexto evita que cada pantalla vuelva a pedir lo mismo, lo que
-// importa cuando el tier gratuito de la API limita a 15 solicitudes por minuto.
+// Estado compartido: el ciclo completo del profesor —todas sus materias, sus
+// grupos y el avance de cada uno—. Un solo contexto evita que cada pantalla
+// vuelva a pedir lo mismo, lo que importa cuando el tier gratuito de la API
+// limita a 15 solicitudes por minuto.
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { api } from "./lib/api.js";
 
-const ContextoMateria = createContext(null);
+const ContextoCiclo = createContext(null);
 
-export function ProveedorMateria({ children }) {
-  const [materia, setMateria] = useState(null);
+export function ProveedorCiclo({ children }) {
+  const [ciclo, setCiclo] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
@@ -16,12 +17,7 @@ export function ProveedorMateria({ children }) {
     setCargando(true);
     setError(null);
     try {
-      const materias = await api.materias();
-      if (!materias.length) {
-        setMateria(null);
-        return;
-      }
-      setMateria(await api.materia(materias[0].id));
+      setCiclo(await api.ciclo());
     } catch (fallo) {
       setError(fallo.message);
     } finally {
@@ -34,14 +30,14 @@ export function ProveedorMateria({ children }) {
   }, [recargar]);
 
   return (
-    <ContextoMateria.Provider value={{ materia, cargando, error, recargar }}>
+    <ContextoCiclo.Provider value={{ ciclo, cargando, error, recargar }}>
       {children}
-    </ContextoMateria.Provider>
+    </ContextoCiclo.Provider>
   );
 }
 
-export function useMateria() {
-  const contexto = useContext(ContextoMateria);
-  if (!contexto) throw new Error("useMateria debe usarse dentro de ProveedorMateria");
+export function useCiclo() {
+  const contexto = useContext(ContextoCiclo);
+  if (!contexto) throw new Error("useCiclo debe usarse dentro de ProveedorCiclo");
   return contexto;
 }

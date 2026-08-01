@@ -25,9 +25,13 @@ async function pedir(ruta, opciones = {}) {
 export const api = {
   salud: () => pedir("/health"),
 
+  // — Profesor —
+  ciclo: () => pedir("/api/profesor/ciclo"),
+  agenda: (referencia) =>
+    pedir(`/api/profesor/agenda${referencia ? `?referencia=${referencia}` : ""}`),
+
   materias: () => pedir("/api/materias"),
   materia: (id) => pedir(`/api/materias/${id}`),
-
   bitacora: (materiaId) => pedir(`/api/materias/${materiaId}/bitacora`),
   recomendaciones: (materiaId) => pedir(`/api/materias/${materiaId}/recomendaciones`),
 
@@ -42,11 +46,17 @@ export const api = {
       body: JSON.stringify({ temas }),
     }),
 
+  // — Clase en vivo —
   iniciarSesion: (grupoId) => pedir(`/api/grupos/${grupoId}/sesiones/iniciar`, { method: "POST" }),
   enviarFragmento: (sesionId, texto) =>
     pedir(`/api/sesiones/${sesionId}/transcripcion`, {
       method: "POST",
       body: JSON.stringify({ texto }),
+    }),
+  consultarEnVivo: (sesionId, pregunta) =>
+    pedir(`/api/sesiones/${sesionId}/consultar`, {
+      method: "POST",
+      body: JSON.stringify({ pregunta }),
     }),
   cerrarSesion: (sesionId, duracionMin) =>
     pedir(`/api/sesiones/${sesionId}/cerrar`, {
@@ -55,10 +65,21 @@ export const api = {
     }),
   sesiones: (grupoId) => pedir(`/api/grupos/${grupoId}/sesiones`),
 
+  // — Portal del alumno —
+  gruposAlumno: () => pedir("/api/alumno/grupos"),
   clases: (grupoId) => pedir(`/api/grupos/${grupoId}/clases`),
+  clase: (sesionId) => pedir(`/api/sesiones/${sesionId}/publica`),
+  dudas: (grupoId) => pedir(`/api/grupos/${grupoId}/dudas`),
+
   historialChat: (grupoId) => pedir(`/api/grupos/${grupoId}/chat`),
   preguntar: (grupoId, pregunta) =>
     pedir(`/api/grupos/${grupoId}/chat`, {
+      method: "POST",
+      body: JSON.stringify({ pregunta }),
+    }),
+  historialChatClase: (sesionId) => pedir(`/api/sesiones/${sesionId}/chat`),
+  preguntarSobreClase: (sesionId, pregunta) =>
+    pedir(`/api/sesiones/${sesionId}/chat`, {
       method: "POST",
       body: JSON.stringify({ pregunta }),
     }),

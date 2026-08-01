@@ -34,6 +34,10 @@ class CierreEntrada(BaseModel):
     duracion_min: int = 0
 
 
+class ConsultaEntrada(BaseModel):
+    pregunta: str
+
+
 def _serializar_sesion(sesion: Sesion) -> dict:
     return {
         "id": sesion.id,
@@ -104,6 +108,52 @@ def listar_sesiones(grupo_id: int, db: Session = Depends(obtener_sesion)) -> lis
         select(Sesion).where(Sesion.grupo_id == grupo_id).order_by(Sesion.fecha.desc())
     ).all()
     return [_serializar_sesion(s) for s in sesiones]
+
+
+@router.post("/sesiones/{sesion_id}/consultar")
+async def consultar_en_vivo(
+    sesion_id: int,
+    entrada: ConsultaEntrada,
+    db: Session = Depends(obtener_sesion),
+) -> dict:
+    """El profesor le pregunta algo a Livy sin salirse de la clase.
+
+    La respuesta se apoya en lo que lleva dicho en esta sesión y en el punto donde
+    venía el grupo, así que sirve para "¿qué me falta de este tema?" o "dame otro
+    ejemplo" en medio del pizarrón. No se guarda en la transcripción: es una
+    consulta lateral, no parte de la clase.
+    """
+    sesion = db.get(Sesion, sesion_id)
+    if not sesion:
+        raise HTTPException(404, "Sesión no encontrada")
+
+    pregunta = entrada.pregunta.strip()
+    if not pregunta:
+        raise HTTPException(400, "La pregunta llegó vacía")
+
+    grupo = db.get(Grupo, sesion.grupo_id)
+    materia = db.get(Materia, grupo.materia_id)
+    temas = temas_de_materia(db, materia.id)
+    estado = estado_de_grupo(db, grupo, temas)
+
+    try:
+        respuesta = await gemma.generar(
+            prompts.consultar_en_clase(
+                materia=materia.nombre,
+                grupo=grupo.nombre,
+                transcripcion=sesion.transcripcion[-6000:],
+                contexto=contexto_previo(estado),
+                pregunta=pregunta,
+            ),
+            sistema=prompts.SISTEMA,
+            simulado=prompts.simulacion("texto"),
+            temperatura=0.4,
+            max_tokens=600,
+        )
+    except gemma.ErrorGemma as error:
+        raise HTTPException(502, str(error)) from error
+
+    return {"respuesta": respuesta}
 
 
 @router.post("/sesiones/{sesion_id}/cerrar")

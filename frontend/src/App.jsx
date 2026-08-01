@@ -1,75 +1,130 @@
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { Link, NavLink, Navigate, Outlet, Route, Routes } from "react-router-dom";
 
-import { ProveedorMateria } from "./estado.jsx";
-import Bitacora from "./pages/Bitacora.jsx";
-import ClaseEnVivo from "./pages/ClaseEnVivo.jsx";
-import PortalAlumno from "./pages/PortalAlumno.jsx";
-import Temario from "./pages/Temario.jsx";
+import { ProveedorCiclo } from "./estado.jsx";
+import Landing from "./pages/Landing.jsx";
+import Bitacora from "./pages/profesor/Bitacora.jsx";
+import ClaseEnVivo from "./pages/profesor/ClaseEnVivo.jsx";
+import PlanDeEstudios from "./pages/profesor/PlanDeEstudios.jsx";
+import ClaseAlumno from "./pages/alumno/Clase.jsx";
+import ChatGeneral from "./pages/alumno/ChatGeneral.jsx";
+import GrupoAlumno from "./pages/alumno/Grupo.jsx";
+import IndiceAlumno from "./pages/alumno/Indice.jsx";
 
-const SECCIONES = [
-  { ruta: "/bitacora", nombre: "Bitácora" },
-  { ruta: "/clase", nombre: "Clase en vivo" },
-  { ruta: "/temario", nombre: "Plan de estudios" },
-  { ruta: "/alumno", nombre: "Portal del alumno" },
+const SECCIONES_PROFESOR = [
+  { ruta: "/profesor/bitacora", nombre: "Bitácora" },
+  { ruta: "/profesor/clase", nombre: "Clase en vivo" },
+  { ruta: "/profesor/plan", nombre: "Plan de estudios" },
 ];
 
-function Enlace({ ruta, nombre }) {
+function Marca({ sufijo }) {
   return (
-    <NavLink
-      to={ruta}
-      className={({ isActive }) =>
-        [
-          "border-b-2 px-1 pb-3 pt-1 text-sm font-medium transition",
-          isActive
-            ? "border-guinda text-guinda"
-            : "border-transparent text-gris hover:text-guinda-600",
-        ].join(" ")
-      }
-    >
-      {nombre}
-    </NavLink>
+    <Link to="/" className="group flex items-baseline gap-2.5">
+      <span className="text-xl font-semibold tracking-tight text-guinda transition-opacity group-hover:opacity-70">
+        Livy
+      </span>
+      {sufijo && <span className="hidden text-sm text-gris sm:inline">{sufijo}</span>}
+    </Link>
   );
 }
 
-export default function App() {
+function MarcoProfesor() {
   return (
-    <ProveedorMateria>
+    <ProveedorCiclo>
       <div className="flex min-h-full flex-col">
-        <header className="border-b border-borde bg-blanco">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 pt-5">
-            <div className="flex items-baseline gap-3">
-              <span className="text-xl font-semibold tracking-tight text-guinda">Livy</span>
-              <span className="hidden text-sm text-gris sm:inline">
-                Continuidad docente, grupo por grupo
-              </span>
+        <header className="sticky top-0 z-30 border-b border-borde bg-blanco/85 backdrop-blur-md">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 pt-4">
+            <Marca sufijo="Continuidad docente, grupo por grupo" />
+            <div className="flex items-center gap-2">
+              <Link to="/alumno" className="boton-fantasma">
+                Ver portal del alumno
+              </Link>
+              <span className="chip bg-nieve text-guinda-900">Gemma 4</span>
             </div>
-            <span className="chip bg-nieve text-guinda-900">Gemma 4</span>
           </div>
-          <nav className="mx-auto flex max-w-6xl gap-6 overflow-x-auto px-6 pt-4">
-            {SECCIONES.map((seccion) => (
-              <Enlace key={seccion.ruta} {...seccion} />
+          <nav className="mx-auto flex max-w-6xl gap-7 overflow-x-auto px-6 pt-3.5">
+            {SECCIONES_PROFESOR.map((seccion) => (
+              <NavLink
+                key={seccion.ruta}
+                to={seccion.ruta}
+                className={({ isActive }) =>
+                  [
+                    "relative whitespace-nowrap border-b-2 px-0.5 pb-3 pt-1 text-sm font-medium transition-colors duration-200",
+                    isActive
+                      ? "border-guinda text-guinda"
+                      : "border-transparent text-gris hover:text-guinda-600",
+                  ].join(" ")
+                }
+              >
+                {seccion.nombre}
+              </NavLink>
             ))}
           </nav>
         </header>
 
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-          <Routes>
-            <Route path="/" element={<Navigate to="/bitacora" replace />} />
-            <Route path="/bitacora" element={<Bitacora />} />
-            <Route path="/clase" element={<ClaseEnVivo />} />
-            <Route path="/temario" element={<Temario />} />
-            <Route path="/alumno" element={<PortalAlumno />} />
-            <Route path="*" element={<Navigate to="/bitacora" replace />} />
-          </Routes>
+          <Outlet />
         </main>
 
         <footer className="border-t border-borde bg-blanco">
           <div className="mx-auto max-w-6xl px-6 py-5 text-xs text-gris">
-            El profesor es el autor. Livy solo propone: cada resumen y cada plan queda
-            sujeto a su revisión.
+            El profesor es el autor. Livy solo propone: cada resumen y cada plan queda sujeto
+            a su revisión.
           </div>
         </footer>
       </div>
-    </ProveedorMateria>
+    </ProveedorCiclo>
+  );
+}
+
+function MarcoAlumno() {
+  return (
+    <div className="flex min-h-full flex-col">
+      <header className="sticky top-0 z-30 border-b border-borde bg-blanco/85 backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-4">
+          <div className="flex items-baseline gap-2.5">
+            <Marca />
+            <span className="chip bg-nieve text-guinda-900">Portal del alumno</span>
+          </div>
+          <Link to="/alumno" className="boton-fantasma">
+            Mis materias
+          </Link>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
+        <Outlet />
+      </main>
+
+      <footer className="border-t border-borde bg-blanco">
+        <div className="mx-auto max-w-5xl px-6 py-5 text-xs text-gris">
+          Las respuestas se basan en las clases que tu profesor impartió a tu grupo. Si algo no
+          se vio en clase, Livy te lo dice en vez de inventarlo.
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Landing />} />
+
+      <Route path="/profesor" element={<MarcoProfesor />}>
+        <Route index element={<Navigate to="/profesor/bitacora" replace />} />
+        <Route path="bitacora" element={<Bitacora />} />
+        <Route path="clase" element={<ClaseEnVivo />} />
+        <Route path="plan" element={<PlanDeEstudios />} />
+      </Route>
+
+      <Route path="/alumno" element={<MarcoAlumno />}>
+        <Route index element={<IndiceAlumno />} />
+        <Route path="clase/:sesionId" element={<ClaseAlumno />} />
+        <Route path=":grupoId" element={<GrupoAlumno />} />
+        <Route path=":grupoId/chat" element={<ChatGeneral />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

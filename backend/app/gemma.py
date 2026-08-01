@@ -39,10 +39,11 @@ class ErrorGemma(RuntimeError):
     """Falla al obtener una respuesta utilizable del modelo."""
 
 
-# El endpoint hospedado no documenta con claridad estas dos capacidades para los
+# El endpoint hospedado no documenta con claridad estas capacidades para los
 # modelos Gemma. En vez de asumir, se prueban una vez y se recuerda el resultado.
 _soporta_instruccion_sistema = True
 _soporta_json_nativo = True
+_soporta_nivel_pensamiento = True
 
 
 class _Limitador:
@@ -73,11 +74,45 @@ class _Limitador:
 _limitador = _Limitador(LIMITE_POR_MINUTO)
 
 
+def _bloques_balanceados(texto: str, apertura: str, cierre: str) -> list[str]:
+    """Devuelve todos los fragmentos con llaves balanceadas del texto.
+
+    Se ignoran las llaves que aparecen dentro de cadenas para no confundir un
+    `"{"` literal con el inicio de un objeto.
+    """
+    bloques: list[str] = []
+    pila: list[int] = []
+    en_cadena = False
+    escapado = False
+
+    for i, caracter in enumerate(texto):
+        if en_cadena:
+            if escapado:
+                escapado = False
+            elif caracter == "\\":
+                escapado = True
+            elif caracter == '"':
+                en_cadena = False
+            continue
+        if caracter == '"':
+            en_cadena = True
+        elif caracter == apertura:
+            pila.append(i)
+        elif caracter == cierre and pila:
+            inicio = pila.pop()
+            if not pila:  # se cerró un bloque de nivel superior
+                bloques.append(texto[inicio : i + 1])
+
+    return bloques
+
+
 def extraer_json(texto: str) -> Any:
     """Parsea JSON tolerando lo que los modelos suelen agregar de más.
 
-    Quita cercas de código, prosa antes o después, y se queda con el primer
-    objeto o arreglo balanceado que encuentre.
+    Gemma 4 puede anteponer su razonamiento al resultado, y ese razonamiento
+    suele traer fragmentos de JSON de ejemplo. Por eso no basta con tomar el
+    primer objeto balanceado: se recogen todos los candidatos y se elige **el
+    más grande que parsee**, que es siempre la respuesta y no el borrador.
     """
     limpio = texto.strip()
     if limpio.startswith("```"):
@@ -91,34 +126,15 @@ def extraer_json(texto: str) -> Any:
     except json.JSONDecodeError:
         pass
 
+    candidatos: list[str] = []
     for apertura, cierre in (("{", "}"), ("[", "]")):
-        inicio = limpio.find(apertura)
-        if inicio == -1:
+        candidatos.extend(_bloques_balanceados(limpio, apertura, cierre))
+
+    for bloque in sorted(candidatos, key=len, reverse=True):
+        try:
+            return json.loads(bloque)
+        except json.JSONDecodeError:
             continue
-        profundidad = 0
-        en_cadena = False
-        escapado = False
-        for i in range(inicio, len(limpio)):
-            caracter = limpio[i]
-            if en_cadena:
-                if escapado:
-                    escapado = False
-                elif caracter == "\\":
-                    escapado = True
-                elif caracter == '"':
-                    en_cadena = False
-                continue
-            if caracter == '"':
-                en_cadena = True
-            elif caracter == apertura:
-                profundidad += 1
-            elif caracter == cierre:
-                profundidad -= 1
-                if profundidad == 0:
-                    try:
-                        return json.loads(limpio[inicio : i + 1])
-                    except json.JSONDecodeError:
-                        break
 
     raise ErrorGemma(f"El modelo no devolvió JSON utilizable: {texto[:400]}")
 
@@ -162,13 +178,17 @@ async def generar(
     simulado: Any = None,
     temperatura: float = 0.2,
     max_tokens: int = 4096,
+    pensar: bool = False,
 ) -> Any:
     """Llama a Gemma 4 y devuelve texto, o el JSON ya parseado si se pide.
 
     `imagenes` es una lista de pares (tipo MIME, bytes) para el temario fotografiado.
     `simulado` es la respuesta que se devuelve cuando el modo simulado está activo.
+    `pensar` deja que el modelo razone en voz alta antes de responder; por defecto
+    se apaga, porque ese razonamiento se devuelve al cliente y se come el
+    presupuesto de tokens sin aportar nada al producto.
     """
-    global _soporta_instruccion_sistema, _soporta_json_nativo
+    global _soporta_instruccion_sistema, _soporta_json_nativo, _soporta_nivel_pensamiento
 
     if MODO_SIMULADO:
         if simulado is None:
@@ -193,6 +213,8 @@ async def generar(
             cuerpo["contents"][0]["parts"][0]["text"] = f"{sistema}\n\n---\n\n{instruccion}"
         if json_esperado and _soporta_json_nativo:
             cuerpo["generationConfig"]["responseMimeType"] = "application/json"
+        if not pensar and _soporta_nivel_pensamiento:
+            cuerpo["generationConfig"]["thinkingConfig"] = {"thinkingLevel": "MINIMAL"}
 
         await _limitador.esperar_turno()
 
@@ -213,6 +235,9 @@ async def generar(
         detalle = respuesta.text[:500]
 
         # Degradaciones: se apaga la opción conflictiva y se reintenta una vez.
+        if respuesta.status_code == 400 and not pensar and _soporta_nivel_pensamiento:
+            _soporta_nivel_pensamiento = False
+            continue
         if respuesta.status_code == 400 and sistema and _soporta_instruccion_sistema:
             _soporta_instruccion_sistema = False
             continue

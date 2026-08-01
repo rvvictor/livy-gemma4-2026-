@@ -25,8 +25,12 @@ class Materia(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     nombre: str
     profesor: str
+    clave: str = ""
     ciclo: str = ""
     sesiones_planeadas: int = 32
+    # Materias que comparten alumnos o que se apoyan en esta: permite ver el ciclo
+    # completo del profesor como un sistema, no como asignaturas sueltas.
+    relacion: str = ""
 
 
 class Tema(SQLModel, table=True):
@@ -56,6 +60,18 @@ class Grupo(SQLModel, table=True):
     nombre: str
     horario: str = ""
     alumnos: int = 0
+    # Días de la semana en formato ISO (1 = lunes … 7 = domingo). Estructurado
+    # para poder armar la agenda semanal sin interpretar texto libre.
+    dias_json: str = "[]"
+    hora_inicio: str = ""
+    hora_fin: str = ""
+
+    @property
+    def dias(self) -> list[int]:
+        try:
+            return json.loads(self.dias_json)
+        except json.JSONDecodeError:
+            return []
 
 
 class Sesion(SQLModel, table=True):
@@ -95,10 +111,16 @@ class Cobertura(SQLModel, table=True):
 
 
 class MensajeChat(SQLModel, table=True):
-    """Historial del chat del alumno, anclado a su grupo."""
+    """Historial del chat del alumno.
+
+    `sesion_id` en nulo significa una pregunta general sobre todo el curso;
+    con valor, la pregunta está acotada a esa clase. Las preguntas de los alumnos
+    alimentan además el panel de dudas del grupo.
+    """
 
     id: int | None = Field(default=None, primary_key=True)
     grupo_id: int = Field(foreign_key="grupo.id", index=True)
+    sesion_id: int | None = Field(default=None, foreign_key="sesion.id", index=True)
     rol: str = "alumno"  # alumno | asistente
     contenido: str = ""
     creado_en: datetime = Field(default_factory=datetime.utcnow)

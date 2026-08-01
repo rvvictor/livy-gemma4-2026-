@@ -9,6 +9,7 @@
   --color-guinda: #6d1a36;
   --color-guinda-900: #4a0f24;
   --color-guinda-600: #8c2148;
+  --color-guinda-300: #c98ba2;
   --color-rojo: #b3122f;
   --color-nieve: #f7e9ee;
   --color-tinta: #1a1416;
@@ -29,12 +30,29 @@ body {
   color: var(--color-tinta);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Utilidades propias, para no repetir la misma composición en cada pantalla. */
+::selection {
+  background-color: var(--color-nieve);
+  color: var(--color-guinda-900);
+}
+
+/* Barras de desplazamiento discretas: la interfaz tiene varias columnas con
+   scroll propio y las barras del sistema rompen la calma del diseño. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-borde) transparent;
+}
+
 @layer components {
   .tarjeta {
-    @apply rounded-lg border border-borde bg-blanco p-5;
+    @apply rounded-2xl border border-borde bg-blanco p-5;
+  }
+
+  .tarjeta-interactiva {
+    @apply rounded-2xl border border-borde bg-blanco p-5 transition-all duration-300
+           hover:-translate-y-0.5 hover:border-guinda-300 hover:shadow-[0_8px_30px_-12px_rgba(109,26,54,0.25)];
   }
 
   .etiqueta {
@@ -42,19 +60,57 @@ body {
   }
 
   .boton-primario {
-    @apply inline-flex items-center justify-center gap-2 rounded-md bg-rojo px-5 py-2.5
-           text-sm font-semibold text-blanco transition hover:bg-guinda-900
-           disabled:cursor-not-allowed disabled:opacity-40;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-rojo px-5 py-2.5
+           text-sm font-semibold text-blanco transition-all duration-200
+           hover:bg-guinda-900 hover:shadow-[0_6px_20px_-6px_rgba(179,18,47,0.5)]
+           active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40
+           disabled:hover:shadow-none;
   }
 
   .boton-secundario {
-    @apply inline-flex items-center justify-center gap-2 rounded-md border border-guinda
-           px-4 py-2 text-sm font-medium text-guinda transition hover:bg-nieve
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-borde
+           bg-blanco px-4 py-2 text-sm font-medium text-guinda transition-all duration-200
+           hover:border-guinda hover:bg-nieve active:scale-[0.98]
            disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .boton-fantasma {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm
+           font-medium text-gris transition-colors duration-200 hover:bg-nieve hover:text-guinda;
   }
 
   .chip {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .campo {
+    @apply w-full rounded-xl border border-borde bg-blanco px-3.5 py-2.5 text-sm
+           transition-colors duration-200 placeholder:text-gris/70
+           focus:border-guinda focus:outline-none focus:ring-4 focus:ring-nieve;
+  }
+}
+
+/* ───────────────────────── Animaciones ─────────────────────────
+   Discretas por diseño: solo confirman que algo llegó o cambió. Nada de
+   movimiento que compita con el contenido. */
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes desvanecer {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -68,6 +124,89 @@ body {
   }
 }
 
+@keyframes pulso-anillo {
+  0% {
+    box-shadow: 0 0 0 0 rgba(179, 18, 47, 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(179, 18, 47, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(179, 18, 47, 0);
+  }
+}
+
+@keyframes brillo {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes crecer-barra {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.aparece {
+  animation: aparecer 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.desvanece {
+  animation: desvanecer 0.4s ease-out both;
+}
+
 .latido {
   animation: latido 1.4s ease-in-out infinite;
+}
+
+.pulso-grabando {
+  animation: pulso-anillo 1.8s ease-out infinite;
+}
+
+.barra-crece {
+  transform-origin: left;
+  animation: crecer-barra 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Esqueleto de carga: sugiere la forma del contenido antes de que llegue. */
+.esqueleto {
+  background: linear-gradient(
+    90deg,
+    var(--color-nieve) 25%,
+    var(--color-blanco) 50%,
+    var(--color-nieve) 75%
+  );
+  background-size: 200% 100%;
+  animation: brillo 1.6s linear infinite;
+}
+
+/* Subrayado que crece desde la izquierda al pasar el cursor. */
+.subraya-hover {
+  background-image: linear-gradient(var(--color-guinda), var(--color-guinda));
+  background-repeat: no-repeat;
+  background-size: 0% 1.5px;
+  background-position: 0 100%;
+  transition: background-size 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.subraya-hover:hover {
+  background-size: 100% 1.5px;
+}
+
+/* Quien pidió menos movimiento, recibe menos movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import CORS_ORIGENES, GEMMA_MODELO, MODO_SIMULADO
 from .db import crear_tablas
-from .routers import alumno, bitacora, sesiones, temario
+from .routers import alumno, bitacora, profesor, sesiones, temario
 from .seed import sembrar_si_esta_vacia
 
 
@@ -42,6 +42,7 @@ app.include_router(temario.router)
 app.include_router(sesiones.router)
 app.include_router(bitacora.router)
 app.include_router(alumno.router)
+app.include_router(profesor.router)
 
 
 @app.get("/health")
